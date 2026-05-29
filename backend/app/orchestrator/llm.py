@@ -15,7 +15,7 @@ def build_llm(
     model = model or settings.llm_model
     api_key = api_key if api_key is not None else settings.llm_api_key
     base_url = base_url if base_url is not None else settings.llm_base_url
-    timeout_s = timeout_s or settings.llm_timeout_s
+    timeout_s = timeout_s if timeout_s is not None else settings.llm_timeout_s
 
     if provider == "anthropic":
         from langchain_anthropic import ChatAnthropic
@@ -27,11 +27,14 @@ def build_llm(
         "groq": "https://api.groq.com/openai/v1",
         "deepseek": "https://api.deepseek.com/v1",
         "mistral": "https://api.mistral.ai/v1",
-        "ollama": base_url or "http://ollama:11434/v1",
+        "ollama": None,
     }
     if provider in openai_compatible:
         from langchain_openai import ChatOpenAI
-        resolved_base = base_url or openai_compatible[provider]
+        # Explicit base_url wins; ollama falls back to its default endpoint.
+        resolved_base = base_url or openai_compatible[provider] or (
+            "http://ollama:11434/v1" if provider == "ollama" else None
+        )
         return ChatOpenAI(
             model=model,
             api_key=api_key or "not-needed",

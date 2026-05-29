@@ -47,5 +47,36 @@ class Settings(BaseSettings):
     searxng_url: str = "http://searxng:8080"
     tavily_api_key: str = ""
 
+    # LLM
+    llm_provider: str = "anthropic"        # anthropic|openai|mistral|groq|deepseek|ollama
+    llm_model: str = "claude-sonnet-4-5-20251022"
+    llm_api_key: str = ""
+    llm_base_url: str = ""                  # Ollama / self-hosted
+    llm_timeout_s: int = 120
+    context_budget: float = 0.8             # fraction of model window before summarize
+    memory_injection_tokens: int = 2000
+
+    # Token budgets
+    token_budget_per_task: int = 100000
+    token_budget_user_monthly: int = 2000000
+
+    # Agent behavior
+    default_max_iterations: int = 30
+    max_iterations_cap: int = 50
+    hitl_confidence_threshold: float = 0.3
+    hitl_timeout_seconds: int = 3600
+    worker_concurrency: int = 4
+    max_total_failures: int = 10
+
+    # Observability
+    langfuse_host: str = ""
+    langfuse_public_key: str = ""
+    langfuse_secret_key: str = ""
+
+    @property
+    def checkpointer_dsn(self) -> str:
+        """psycopg DSN for the LangGraph checkpointer (direct Postgres, ADR-1C-01)."""
+        return str(self.postgres_direct_url).replace("postgresql+asyncpg://", "postgresql://")
+
 
 settings = Settings()

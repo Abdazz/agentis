@@ -14,6 +14,7 @@ from app.orchestrator.nodes import RunContext
 from app.orchestrator.state import AgentState
 from app.memory.short_term import ShortTermMemory
 from app.sandbox.manager import sandbox_manager
+from app.orchestrator.observability import get_langfuse_callbacks
 
 log = structlog.get_logger()
 
@@ -72,7 +73,8 @@ async def run_task(task_id_str: str, llm=None, skip_sandbox: bool = False) -> No
 
         await _set_status(task_id, TaskStatus.running)
         config = {"configurable": {"thread_id": task_id_str, "run_ctx": run_ctx},
-                  "recursion_limit": max_iter * 4 + 10}
+                  "recursion_limit": max_iter * 4 + 10,
+                  "callbacks": get_langfuse_callbacks()}
 
         async with checkpointer_context() as checkpointer:
             agent = build_graph(checkpointer)

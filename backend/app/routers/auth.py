@@ -227,10 +227,12 @@ async def create_api_key(
         )
 
     plaintext, key_hash = generate_api_key()
-    db.add(ApiKey(user_id=current_user.id, key_hash=key_hash, label=payload.label))
+    new_key = ApiKey(user_id=current_user.id, key_hash=key_hash, label=payload.label)
+    db.add(new_key)
     await db.commit()
+    await db.refresh(new_key)
     # Plaintext returned ONCE — never stored
-    return {"key": plaintext, "label": payload.label}
+    return {"key": plaintext, "label": payload.label, "id": str(new_key.id)}
 
 
 @router.get("/api-keys")

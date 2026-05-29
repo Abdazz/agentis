@@ -67,7 +67,7 @@ class EventEmitter:
             )).scalars().all()
         return [
             {"step_number": r.step_number,
-             "type": r.step_type.value,
+             "type": _SSE_TYPE.get(r.step_type, r.step_type.value),
              "data": r.content}
             for r in rows
         ]

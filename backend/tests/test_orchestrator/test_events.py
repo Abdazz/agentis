@@ -36,7 +36,7 @@ async def test_emitted_steps_are_replayable(task_id):
     steps = await emitter.replay(after_step=0)
     assert len(steps) == 2
     assert steps[0]["step_number"] == 1
-    assert steps[1]["type"] == "report"
+    assert steps[1]["type"] == "task_completed"  # SSE type, not raw enum value
     await emitter.close()
 
 

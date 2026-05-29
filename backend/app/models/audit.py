@@ -25,4 +25,5 @@ class AuditLog(Base):
         Index("idx_audit_user_time", "user_id", "created_at"),
         Index("idx_audit_task", "task_id", "created_at"),
         Index("idx_audit_event_type", "event_type", "created_at"),
+        Index("idx_audit_session", "session_id"),
     )

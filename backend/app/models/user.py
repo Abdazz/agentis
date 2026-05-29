@@ -2,7 +2,7 @@ import enum
 from datetime import datetime
 from typing import Optional
 from uuid import UUID, uuid4
-from sqlalchemy import String, DateTime, Enum, ForeignKey, Index, text
+from sqlalchemy import String, DateTime, Enum, ForeignKey, Index, BigInteger, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, TimestampMixin
 
@@ -17,14 +17,14 @@ class User(TimestampMixin, Base):
     __tablename__ = "users"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    email: Mapped[str] = mapped_column(String(255), nullable=False)
     name: Mapped[Optional[str]] = mapped_column(String(255))
     password_hash: Mapped[Optional[str]] = mapped_column(String(255))
     role: Mapped[UserRole] = mapped_column(
         Enum(UserRole, name="user_role"), nullable=False, default=UserRole.user
     )
     language: Mapped[str] = mapped_column(String(5), nullable=False, default="fr")
-    token_used_this_month: Mapped[int] = mapped_column(nullable=False, default=0)
+    token_used_this_month: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
     refresh_tokens: Mapped[list["RefreshToken"]] = relationship(back_populates="user", cascade="all, delete-orphan")

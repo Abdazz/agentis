@@ -2,7 +2,7 @@ import enum
 from datetime import datetime
 from typing import Optional
 from uuid import UUID, uuid4
-from sqlalchemy import String, DateTime, Enum, ForeignKey, Integer, BigInteger, Boolean, JSON, Index, text
+from sqlalchemy import String, DateTime, Enum, ForeignKey, Integer, BigInteger, Boolean, JSON, Index, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, TimestampMixin
 
@@ -33,6 +33,7 @@ class Task(TimestampMixin, Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    organization_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("organizations.id"), nullable=True)
     goal: Mapped[str] = mapped_column(String(10000), nullable=False)
     status: Mapped[TaskStatus] = mapped_column(
         Enum(TaskStatus, name="task_status"), nullable=False, default=TaskStatus.submitted
@@ -59,6 +60,7 @@ class Task(TimestampMixin, Base):
         Index("idx_tasks_user_status", "user_id", "status", "created_at"),
         Index("idx_tasks_status", "status", postgresql_where=text("deleted_at IS NULL")),
         Index("idx_tasks_active", "deleted_at", postgresql_where=text("deleted_at IS NULL")),
+        Index("idx_tasks_org", "organization_id", "created_at"),
     )
 
 
@@ -78,6 +80,7 @@ class TaskStep(Base):
 
     __table_args__ = (
         Index("idx_task_steps_task", "task_id", "step_number"),
+        UniqueConstraint("task_id", "step_number", name="uq_task_step_number"),
     )
 
 

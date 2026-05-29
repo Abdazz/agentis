@@ -27,6 +27,7 @@ services:
       test: ["CMD-SHELL", "pg_isready -U agentis"]
       interval: 5s
       retries: 10
+      start_period: 10s
 
   pgbouncer:
     image: edoburu/pgbouncer:latest
@@ -44,9 +45,10 @@ services:
     depends_on:
       postgres: {condition: service_healthy}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -h localhost -p 5432"]
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 5432 || exit 1"]
       interval: 5s
       retries: 10
+      start_period: 10s
 
   redis:
     image: redis:7-alpine
@@ -55,6 +57,7 @@ services:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       retries: 10
+      start_period: 10s
 
   langfuse:
     image: langfuse/langfuse:2
@@ -66,6 +69,7 @@ services:
       SALT: dev-salt
     depends_on:
       postgres: {condition: service_healthy}
+    profiles: ["langfuse"]
     # NOTE: Langfuse requires its own DB. Create it before starting:
     # docker compose up postgres -d
     # docker compose exec postgres createdb -U agentis langfuse

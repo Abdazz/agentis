@@ -8,7 +8,7 @@ from sqlalchemy import select, func
 from app.database import get_db
 from app.models.user import User, RefreshToken, ApiKey
 from app.schemas.auth import (
-    RegisterRequest, LoginRequest, TokenResponse,
+    RegisterRequest, LoginRequest,
     UserResponse, ApiKeyCreateRequest, ApiKeyResponse,
 )
 from app.auth.password import hash_password, verify_password
@@ -99,7 +99,8 @@ async def login(
         select(User).where(func.lower(User.email) == payload.email.lower())
     )
     user = result.scalar_one_or_none()
-    if not user or not user.password_hash or not verify_password(payload.password, user.password_hash):
+    # Check existence and active status first (before expensive bcrypt)
+    if not user or not user.password_hash:
         raise HTTPException(
             status_code=401,
             detail={"code": "invalid_credentials", "message": "Invalid email or password"},
@@ -108,6 +109,11 @@ async def login(
         raise HTTPException(
             status_code=401,
             detail={"code": "account_disabled", "message": "Account disabled"},
+        )
+    if not verify_password(payload.password, user.password_hash):
+        raise HTTPException(
+            status_code=401,
+            detail={"code": "invalid_credentials", "message": "Invalid email or password"},
         )
 
     access_token = create_access_token(str(user.id), user.role.value)
@@ -254,9 +260,16 @@ async def revoke_api_key(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    try:
+        key_uuid = UUID(key_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "invalid_id", "message": "Invalid UUID format"},
+        )
     result = await db.execute(
         select(ApiKey).where(
-            ApiKey.id == UUID(key_id),
+            ApiKey.id == key_uuid,
             ApiKey.user_id == current_user.id,
         )
     )

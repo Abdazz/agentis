@@ -2,9 +2,10 @@ import hashlib
 import secrets
 from datetime import datetime, timezone, timedelta
 from uuid import UUID
+import redis.asyncio as aioredis
 from fastapi import APIRouter, Depends, HTTPException, Response, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, update
 from app.database import get_db
 from app.models.user import User, RefreshToken, ApiKey
 from app.schemas.auth import (
@@ -15,7 +16,6 @@ from app.auth.password import hash_password, verify_password
 from app.auth.jwt import create_access_token
 from app.auth.api_keys import generate_api_key
 from app.auth.dependencies import get_current_user
-from app.auth.rate_limiter import check_rate_limit
 from app.config import settings
 
 router = APIRouter()
@@ -90,6 +90,43 @@ async def register(
     }
 
 
+async def _redis_login_rate_check(email: str) -> None:
+    """Check and increment per-email login failure counter (5 attempts / 15 min)."""
+    rate_key = f"login_fails:{email.lower()}"
+    redis_client = aioredis.from_url(settings.redis_cache_url, decode_responses=True)
+    try:
+        fail_count = await redis_client.get(rate_key)
+        if fail_count and int(fail_count) >= 5:
+            raise HTTPException(
+                status_code=429,
+                headers={"Retry-After": "900"},
+                detail={"code": "rate_limited", "message": "Too many failed login attempts. Try again in 15 minutes."},
+            )
+    finally:
+        await redis_client.aclose()
+
+
+async def _redis_login_increment(email: str) -> None:
+    """Increment per-email login failure counter with 15-min TTL."""
+    rate_key = f"login_fails:{email.lower()}"
+    redis_client = aioredis.from_url(settings.redis_cache_url, decode_responses=True)
+    try:
+        await redis_client.incr(rate_key)
+        await redis_client.expire(rate_key, 900)
+    finally:
+        await redis_client.aclose()
+
+
+async def _redis_login_clear(email: str) -> None:
+    """Clear per-email login failure counter on successful login."""
+    rate_key = f"login_fails:{email.lower()}"
+    redis_client = aioredis.from_url(settings.redis_cache_url, decode_responses=True)
+    try:
+        await redis_client.delete(rate_key)
+    finally:
+        await redis_client.aclose()
+
+
 @router.post("/login")
 async def login(
     payload: LoginRequest,
@@ -97,13 +134,16 @@ async def login(
     response: Response,
     db: AsyncSession = Depends(get_db),
 ):
-    await check_rate_limit(request, limit=settings.rate_limit_task_hour)
+    # Rate limit: 5 failed attempts per email per 15 minutes
+    await _redis_login_rate_check(payload.email)
+
     result = await db.execute(
         select(User).where(func.lower(User.email) == payload.email.lower())
     )
     user = result.scalar_one_or_none()
     # Check existence and active status first (before expensive bcrypt)
     if not user or not user.password_hash:
+        await _redis_login_increment(payload.email)
         raise HTTPException(
             status_code=401,
             detail={"code": "invalid_credentials", "message": "Invalid email or password"},
@@ -114,10 +154,14 @@ async def login(
             detail={"code": "account_disabled", "message": "Account disabled"},
         )
     if not verify_password(payload.password, user.password_hash):
+        await _redis_login_increment(payload.email)
         raise HTTPException(
             status_code=401,
             detail={"code": "invalid_credentials", "message": "Invalid email or password"},
         )
+
+    # Successful login — clear failure counter
+    await _redis_login_clear(payload.email)
 
     access_token = create_access_token(str(user.id), user.role.value)
     raw_refresh, refresh_hash = _make_refresh_token()
@@ -153,21 +197,38 @@ async def refresh_token(
     token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
     now = datetime.now(timezone.utc)
 
+    # Look up token even if already revoked (to detect replay attacks)
     result = await db.execute(
-        select(RefreshToken).where(
-            RefreshToken.token_hash == token_hash,
-            RefreshToken.revoked_at.is_(None),
-            RefreshToken.expires_at > now,
-        )
+        select(RefreshToken).where(RefreshToken.token_hash == token_hash)
     )
     stored = result.scalar_one_or_none()
-    if not stored:
+
+    if stored is None:
         raise HTTPException(
             status_code=401,
-            detail={"code": "unauthenticated", "message": "Invalid or expired refresh token"},
+            detail={"code": "unauthenticated", "message": "Invalid refresh token"},
         )
 
-    # Rotate: revoke old token, issue new pair
+    if stored.revoked_at is not None:
+        # REPLAY ATTACK: token was already revoked — invalidate ALL sessions for this user
+        await db.execute(
+            update(RefreshToken)
+            .where(RefreshToken.user_id == stored.user_id, RefreshToken.revoked_at.is_(None))
+            .values(revoked_at=now)
+        )
+        await db.commit()
+        raise HTTPException(
+            status_code=401,
+            detail={"code": "unauthenticated", "message": "Refresh token already used — all sessions revoked"},
+        )
+
+    if stored.expires_at < now:
+        raise HTTPException(
+            status_code=401,
+            detail={"code": "unauthenticated", "message": "Refresh token expired"},
+        )
+
+    # Valid — rotate: revoke old, issue new pair
     stored.revoked_at = now
     user = await db.get(User, stored.user_id)
     new_access = create_access_token(str(user.id), user.role.value)
@@ -227,7 +288,12 @@ async def create_api_key(
         )
 
     plaintext, key_hash = generate_api_key()
-    new_key = ApiKey(user_id=current_user.id, key_hash=key_hash, label=payload.label)
+    new_key = ApiKey(
+        user_id=current_user.id,
+        key_hash=key_hash,
+        label=payload.label,
+        expires_at=datetime.now(timezone.utc) + timedelta(days=365),
+    )
     db.add(new_key)
     await db.commit()
     await db.refresh(new_key)

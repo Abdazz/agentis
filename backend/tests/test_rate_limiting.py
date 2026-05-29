@@ -1,65 +1,51 @@
 import pytest
-from unittest.mock import patch, AsyncMock, MagicMock
+from unittest.mock import patch, AsyncMock
 from httpx import AsyncClient
 
 
 @pytest.mark.asyncio
 async def test_rate_limit_returns_429_with_headers(client: AsyncClient):
     """
-    Mock the rate limiter to return count=999 (over limit) and verify
-    the 429 response + rate limit headers without touching Redis.
+    Mock the per-email rate check to raise 429 and verify the response.
     """
-    from app.auth import rate_limiter
+    from fastapi import HTTPException
 
-    async def always_limited(request, limit):
-        from fastapi import HTTPException
+    async def always_limited(email: str):
         raise HTTPException(
             status_code=429,
             headers={
-                "X-RateLimit-Limit": str(limit),
-                "X-RateLimit-Remaining": "0",
-                "X-RateLimit-Reset": "9999999999",
-                "Retry-After": "3600",
+                "Retry-After": "900",
             },
-            detail={"code": "rate_limited", "message": "Rate limit exceeded. Try again later."},
+            detail={"code": "rate_limited", "message": "Too many failed login attempts. Try again in 15 minutes."},
         )
 
-    # Patch on the auth router module (where check_rate_limit was imported)
-    with patch("app.routers.auth.check_rate_limit", side_effect=always_limited):
+    # Patch the per-email rate check helper in the auth router
+    with patch("app.routers.auth._redis_login_rate_check", side_effect=always_limited):
         response = await client.post("/api/v1/auth/login", json={
             "email": "test@example.com", "password": "Secure123!Pass"
         })
 
     assert response.status_code == 429
-    assert response.headers.get("X-RateLimit-Limit") == "60"
-    assert response.headers.get("Retry-After") == "3600"
+    assert response.headers.get("Retry-After") == "900"
     assert response.json()["error"]["code"] == "rate_limited"
 
 
 @pytest.mark.asyncio
 async def test_rate_limit_not_triggered_normally(client: AsyncClient):
-    """Normal requests are not rate limited (mock Redis to avoid infra dependency)."""
-    from app.auth import rate_limiter
+    """Normal requests are not rate limited when under the failure threshold."""
 
-    # Mock _get_redis (async function) to return a fake Redis with pipeline.
-    # Pipeline command stubs (zremrangebyscore, zadd, etc.) are synchronous in
-    # the real client — they just queue the command; only execute() is async.
-    mock_pipeline = MagicMock()
-    mock_pipeline.zremrangebyscore = MagicMock()
-    mock_pipeline.zadd = MagicMock()
-    mock_pipeline.zcard = MagicMock()
-    mock_pipeline.expire = MagicMock()
-    # execute returns [removed, added, count=1, True] — count=1 is well under limit
-    mock_pipeline.execute = AsyncMock(return_value=[0, 1, 1, True])
+    async def no_limit(email: str):
+        pass  # Don't raise — allow the request through
 
-    mock_redis = AsyncMock()
-    mock_redis.pipeline = MagicMock(return_value=mock_pipeline)
-    mock_redis.aclose = AsyncMock()
+    async def no_increment(email: str):
+        pass
 
-    async def fake_get_redis():
-        return mock_redis
+    async def no_clear(email: str):
+        pass
 
-    with patch.object(rate_limiter, "_get_redis", side_effect=fake_get_redis):
+    with patch("app.routers.auth._redis_login_rate_check", side_effect=no_limit), \
+         patch("app.routers.auth._redis_login_increment", side_effect=no_increment), \
+         patch("app.routers.auth._redis_login_clear", side_effect=no_clear):
         response = await client.post("/api/v1/auth/login", json={
             "email": "test@example.com", "password": "Secure123!Pass"
         })

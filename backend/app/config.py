@@ -28,5 +28,24 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     environment: str = "development"
 
+    # Sandbox
+    sandbox_image: str = "agentis-sandbox:latest"
+    sandbox_max_concurrent: int = 10
+    sandbox_warm_pool_size: int = 2
+    sandbox_timeout_seconds: int = 1800
+    sandbox_network: str = "agentis_default"  # Docker network name
+    sandbox_rpc_port: int = 9999
+    egress_proxy_url: str = ""  # e.g. http://squid:3128 (empty = no proxy)
+
+    # Tools
+    tool_output_max_tokens: int = 8000
+    code_executor_timeout_s: int = 120
+
+    # Search
+    search_backend: str = "brave"          # brave|searxng|tavily
+    brave_api_key: str = ""
+    searxng_url: str = "http://searxng:8080"
+    tavily_api_key: str = ""
+
 
 settings = Settings()

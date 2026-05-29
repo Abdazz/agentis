@@ -8,6 +8,8 @@ from app.config import settings
 from app.database import init_db
 from app.logging_config import configure_logging
 from app.routers import auth
+from app.tools.registry import tool_registry
+from app.tools.init_registry import register_all_tools
 
 configure_logging()
 log = structlog.get_logger()
@@ -16,7 +18,9 @@ log = structlog.get_logger()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
-    log.info("agentis_api_started", environment=settings.environment)
+    register_all_tools()
+    log.info("agentis_api_started", environment=settings.environment,
+             tools=tool_registry.list_names())
     yield
     log.info("agentis_api_stopped")
 

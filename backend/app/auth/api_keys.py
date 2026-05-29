@@ -1,4 +1,5 @@
 import hashlib
+import hmac
 import secrets
 
 
@@ -16,4 +17,5 @@ def hash_api_key(key: str) -> str:
 
 
 def verify_api_key(key: str, stored_hash: str) -> bool:
-    return hashlib.sha256(key.encode()).hexdigest() == stored_hash
+    computed = hashlib.sha256(key.encode()).hexdigest()
+    return hmac.compare_digest(computed, stored_hash)

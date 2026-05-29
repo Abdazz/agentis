@@ -38,7 +38,6 @@ async def checkpointer_context():
         kwargs={"autocommit": True, "prepare_threshold": None},
         open=False,
     ) as pool:
-        await pool.open()
         checkpointer = AsyncPostgresSaver(pool)
         await checkpointer.setup()
         yield checkpointer

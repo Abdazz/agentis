@@ -3,7 +3,6 @@ transitions, budgets, and cancellation (Features TASK-1/3, ORCH-3/5)."""
 from datetime import datetime, timezone
 from uuid import UUID
 import structlog
-from langchain_core.messages import AIMessage
 from app.config import settings
 from app.database import AsyncSessionLocal
 from app.models.task import Task, TaskStatus, TaskStepType

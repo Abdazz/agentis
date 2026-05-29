@@ -35,7 +35,7 @@ async def handle(action: str, params: dict) -> dict:
         return {"content": text[:max_chars], "truncated": truncated}
 
     elif action == "list":
-        p = _safe_path(params.get("directory", "/workspace"))
+        p = _safe_path(params.get("directory", "."))
         entries = []
         for item in sorted(p.iterdir()):
             stat = item.stat()

@@ -15,6 +15,22 @@ services:
       pgbouncer: {condition: service_healthy}
       redis:     {condition: service_healthy}
 
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A app.worker.celery_app worker --loglevel=info --concurrency=4
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock   # sandbox container management
+    networks:
+      - agentis_default
+
   postgres:
     image: postgres:16-alpine
     environment:
@@ -82,3 +98,7 @@ services:
 
 volumes:
   postgres_data:
+
+networks:
+  agentis_default:
+    driver: bridge

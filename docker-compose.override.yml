@@ -11,6 +11,14 @@ services:
   redis:
     ports: ["6379:6379"]
 
+  worker:
+    volumes:
+      - ./backend:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: watchmedo auto-restart --directory=/app/app --pattern="*.py" --recursive -- celery -A app.worker.celery_app worker --loglevel=info --concurrency=2
+    environment:
+      AGENTIS_POSTGRES_DIRECT_URL: postgresql+asyncpg://agentis:agentis@postgres:5432/agentis
+
   sandbox:
     image: agentis-sandbox:latest
     build:

@@ -7,8 +7,11 @@ WORKSPACE = Path("/workspace")
 
 def _safe_path(path: str) -> Path:
     """Resolve path and ensure it stays within /workspace. Raises ValueError otherwise."""
+    if not path:
+        raise ValueError("Path must not be empty")
     resolved = (WORKSPACE / path.lstrip("/")).resolve()
-    if not str(resolved).startswith(str(WORKSPACE)):
+    # Use parents check to avoid prefix collision (e.g. /workspace-evil)
+    if resolved != WORKSPACE and WORKSPACE not in resolved.parents:
         raise ValueError(f"Path '{path}' escapes /workspace")
     return resolved
 

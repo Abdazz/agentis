@@ -10,3 +10,10 @@ services:
     ports: ["5436:5432"]
   redis:
     ports: ["6379:6379"]
+
+  sandbox:
+    image: agentis-sandbox:latest
+    build:
+      context: ./sandbox
+      dockerfile: Dockerfile
+    profiles: ["sandbox"]

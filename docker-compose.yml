@@ -74,5 +74,11 @@ services:
     # docker compose up postgres -d
     # docker compose exec postgres createdb -U agentis langfuse
 
+  squid:
+    image: ubuntu/squid:latest
+    volumes:
+      - ./squid/squid.conf:/etc/squid/squid.conf:ro
+    restart: unless-stopped
+
 volumes:
   postgres_data:

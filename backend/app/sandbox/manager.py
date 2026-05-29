@@ -27,12 +27,32 @@ class SandboxManager:
         self._sessions: dict[str, SandboxSession] = {}
 
     def _start_container(self, task_id: str) -> SandboxSession:
+        import docker.types
+
         container = self._client.containers.run(
             image=settings.sandbox_image,
             detach=True,
             network=settings.sandbox_network,
             name=f"agentis-sandbox-{task_id}",
+            # Security hardening (spec §7.3)
             security_opt=["no-new-privileges"],
+            read_only=True,
+            cap_drop=["ALL"],
+            # /workspace must be writable — use tmpfs (ephemeral, destroyed with container)
+            mounts=[
+                docker.types.Mount(
+                    target="/workspace",
+                    source=None,
+                    type="tmpfs",
+                    tmpfs_size="5368709120",  # 5 GB limit
+                )
+            ],
+            environment={
+                "http_proxy": settings.egress_proxy_url,
+                "https_proxy": settings.egress_proxy_url,
+                "HTTP_PROXY": settings.egress_proxy_url,
+                "HTTPS_PROXY": settings.egress_proxy_url,
+            } if settings.egress_proxy_url else None,
             mem_limit="2g",
             nano_cpus=2 * 10**9,
             remove=False,

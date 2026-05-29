@@ -31,6 +31,7 @@ class CodeExecutorTool(BaseTool):
             result = await client.call(f"code_executor.{action}", rpc_params)
             return ToolResult(ok=True, data=result)
         except RpcError as e:
-            return ToolResult(ok=False, error=e.message, retryable=False)
+            retryable = e.code == -32000
+            return ToolResult(ok=False, error=e.message, retryable=retryable)
         except Exception as e:
             return ToolResult(ok=False, error=str(e), retryable=True)

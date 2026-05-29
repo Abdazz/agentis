@@ -1,5 +1,4 @@
 """Task CRUD + SSE endpoints (Features TASK-1/3/4, §15.3)."""
-import asyncio
 import json
 from datetime import datetime
 from uuid import UUID
@@ -92,23 +91,27 @@ async def get_task(task_id: UUID, request: Request, user: User = Depends(get_cur
 async def cancel_task(task_id: UUID, request: Request, user: User = Depends(get_current_user),
                       db: AsyncSession = Depends(get_db)):
     is_admin = user.role.value in ("admin", "operator")
+    # Read status before cancel to detect idempotent re-cancel (BR-TASK-23)
+    existing = await task_repo.get_task(db, task_id=task_id, user_id=user.id, is_admin=is_admin)
+    if existing is None:
+        raise HTTPException(status_code=404, detail={"code": "not_found", "message": "Task not found"})
+    already_cancelled = existing.status == TaskStatus.cancelled
     ok = await task_repo.cancel_task(db, task_id=task_id, user_id=user.id, is_admin=is_admin)
     if not ok:
-        task = await task_repo.get_task(db, task_id=task_id, user_id=user.id, is_admin=is_admin)
-        if task is None:
-            raise HTTPException(status_code=404, detail={"code": "not_found", "message": "Task not found"})
         raise HTTPException(status_code=409, detail={
-            "code": "not_cancellable", "message": f"Task in status {task.status.value} cannot be cancelled"})
+            "code": "not_cancellable",
+            "message": f"Task in status {existing.status.value} cannot be cancelled"})
     await db.commit()
-    # Cancellation sequence (BR-TASK-21): revoke Celery task, stop sandbox
-    try:
-        celery_app.control.revoke(str(task_id), terminate=True)
-    except Exception as e:
-        log.warning("celery_revoke_failed", task_id=str(task_id), error=str(e))
-    sandbox_manager.destroy_session(str(task_id))
-    emitter = EventEmitter(task_id)
-    await emitter.emit_failed_cancelled()
-    await emitter.close()
+    if not already_cancelled:
+        # Cancellation sequence (BR-TASK-21): revoke Celery task, stop sandbox, emit event
+        try:
+            celery_app.control.revoke(str(task_id), terminate=True)
+        except Exception as e:
+            log.warning("celery_revoke_failed", task_id=str(task_id), error=str(e))
+        sandbox_manager.destroy_session(str(task_id))
+        emitter = EventEmitter(task_id)
+        await emitter.emit_failed_cancelled()
+        await emitter.close()
     task = await task_repo.get_task(db, task_id=task_id, user_id=user.id, is_admin=is_admin)
     return _to_response(task, request)
 

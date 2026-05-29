@@ -1,0 +1,10 @@
+services:
+  api:
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./backend:/app
+    environment:
+      - AGENTIS_ENVIRONMENT=development
+      - AGENTIS_LOG_LEVEL=DEBUG
+  postgres:
+    ports: ["5436:5432"]

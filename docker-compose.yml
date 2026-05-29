@@ -1,0 +1,74 @@
+services:
+  api:
+    build: ./backend
+    ports: ["8000:8000"]
+    environment:
+      - AGENTIS_DATABASE_URL=postgresql+asyncpg://agentis:agentis@pgbouncer:5432/agentis
+      - AGENTIS_POSTGRES_DIRECT_URL=postgresql+asyncpg://agentis:agentis@postgres:5432/agentis
+      - AGENTIS_REDIS_BROKER_URL=redis://redis:6379/0
+      - AGENTIS_REDIS_CACHE_URL=redis://redis:6379/1
+      - AGENTIS_JWT_PRIVATE_KEY_PATH=/secrets/jwt/private.pem
+      - AGENTIS_JWT_PUBLIC_KEY_PATH=/secrets/jwt/public.pem
+    volumes:
+      - ./secrets/jwt:/secrets/jwt:ro
+    depends_on:
+      pgbouncer: {condition: service_healthy}
+      redis:     {condition: service_healthy}
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: agentis
+      POSTGRES_PASSWORD: agentis
+      POSTGRES_DB: agentis
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentis"]
+      interval: 5s
+      retries: 10
+
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: agentis
+      DB_PASSWORD: agentis
+      DB_NAME: agentis
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 500
+      DEFAULT_POOL_SIZE: 20
+      AUTH_TYPE: md5
+    ports: ["5435:5432"]
+    depends_on:
+      postgres: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h localhost -p 5432"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --save "" --appendonly no
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
+  langfuse:
+    image: langfuse/langfuse:2
+    ports: ["3001:3000"]
+    environment:
+      DATABASE_URL: postgresql://agentis:agentis@postgres:5432/langfuse
+      NEXTAUTH_SECRET: dev-secret-change-in-prod
+      NEXTAUTH_URL: http://localhost:3001
+      SALT: dev-salt
+    depends_on:
+      postgres: {condition: service_healthy}
+    # NOTE: Langfuse requires its own DB. Create it before starting:
+    # docker compose up postgres -d
+    # docker compose exec postgres createdb -U agentis langfuse
+
+volumes:
+  postgres_data:

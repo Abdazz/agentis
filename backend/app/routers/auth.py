@@ -15,6 +15,7 @@ from app.auth.password import hash_password, verify_password
 from app.auth.jwt import create_access_token
 from app.auth.api_keys import generate_api_key
 from app.auth.dependencies import get_current_user
+from app.auth.rate_limiter import check_rate_limit
 from app.config import settings
 
 router = APIRouter()
@@ -92,9 +93,11 @@ async def register(
 @router.post("/login")
 async def login(
     payload: LoginRequest,
+    request: Request,
     response: Response,
     db: AsyncSession = Depends(get_db),
 ):
+    await check_rate_limit(request, limit=settings.rate_limit_task_hour)
     result = await db.execute(
         select(User).where(func.lower(User.email) == payload.email.lower())
     )

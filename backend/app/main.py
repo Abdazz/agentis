@@ -1,3 +1,4 @@
+import uuid as uuid_lib
 import structlog
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
@@ -5,8 +6,10 @@ from fastapi.exceptions import HTTPException, RequestValidationError
 from fastapi.responses import JSONResponse
 from app.config import settings
 from app.database import init_db
+from app.logging_config import configure_logging
 from app.routers import auth
 
+configure_logging()
 log = structlog.get_logger()
 
 
@@ -23,6 +26,22 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+
+@app.middleware("http")
+async def request_logging_middleware(request: Request, call_next):
+    request_id = str(uuid_lib.uuid4())
+    structlog.contextvars.clear_contextvars()
+    structlog.contextvars.bind_contextvars(
+        request_id=request_id,
+        path=request.url.path,
+        method=request.method,
+    )
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
+    log.info("http_request", status_code=response.status_code)
+    return response
+
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 
@@ -42,6 +61,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     return JSONResponse(
         status_code=exc.status_code,
         content={"error": error_body},
+        headers=dict(exc.headers) if exc.headers else None,
     )
 
 

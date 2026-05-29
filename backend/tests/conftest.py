@@ -3,6 +3,7 @@ os.environ.setdefault("AGENTIS_JWT_PRIVATE_KEY_PATH", "/home/yulcom/web/perso/ag
 os.environ.setdefault("AGENTIS_JWT_PUBLIC_KEY_PATH", "/home/yulcom/web/perso/agentis/secrets/jwt/public.pem")
 os.environ.setdefault("AGENTIS_POSTGRES_DIRECT_URL", "postgresql+asyncpg://agentis:agentis@localhost:5436/agentis")
 os.environ.setdefault("AGENTIS_DATABASE_URL", "postgresql+asyncpg://agentis:agentis@localhost:5436/agentis_test")
+os.environ.setdefault("AGENTIS_REDIS_CACHE_URL", "redis://172.25.0.3:6379/1")
 
 import pytest
 import pytest_asyncio

@@ -14,6 +14,14 @@ async def test_health_check():
 
 
 @pytest.mark.asyncio
+async def test_health_has_request_id():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/v1/health")
+    assert "x-request-id" in response.headers
+    assert len(response.headers["x-request-id"]) == 36  # UUID format
+
+
+@pytest.mark.asyncio
 async def test_schema_tables_exist():
     async with test_engine.connect() as conn:
         result = await conn.execute(text(

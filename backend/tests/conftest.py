@@ -7,6 +7,7 @@ os.environ.setdefault("AGENTIS_REDIS_CACHE_URL", "redis://localhost:6379/1")
 
 import pytest
 import pytest_asyncio
+import redis as sync_redis
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.pool import NullPool
@@ -46,3 +47,18 @@ async def client(db_session: AsyncSession):
             yield c
     finally:
         app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def clear_rate_limits():
+    """Clear Redis rate limit keys before each test to prevent accumulation."""
+    r = sync_redis.from_url("redis://localhost:6379/1", decode_responses=True)
+    # Delete all login rate limit keys
+    keys = r.keys("login_fails:*")
+    if keys:
+        r.delete(*keys)
+    keys2 = r.keys("ratelimit:*")
+    if keys2:
+        r.delete(*keys2)
+    r.close()
+    yield

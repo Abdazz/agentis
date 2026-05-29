@@ -5,7 +5,6 @@ import json
 import time
 from dataclasses import dataclass
 from typing import Any, Optional
-from uuid import UUID
 from langchain_core.messages import (AIMessage, HumanMessage, SystemMessage,
                                      ToolMessage, BaseMessage)
 from langchain_core.runnables import RunnableConfig
@@ -14,7 +13,8 @@ from app.models.task import TaskStepType
 from app.tools.base import SessionContext
 from app.tools.registry import tool_registry
 from app.orchestrator.state import AgentState, Plan, new_plan
-from app.orchestrator.context import truncate_tool_output, count_message_tokens
+from app.orchestrator.context import (truncate_tool_output, count_message_tokens,
+                                      needs_summarization, summarize_messages, model_window)
 from app.orchestrator import prompts
 from app.orchestrator.tools_adapter import build_tool_schemas
 
@@ -72,7 +72,17 @@ async def think_node(state: AgentState, config: RunnableConfig) -> dict:
     sys = prompts.system_with_language(prompts.THINK_SYSTEM, state.get("language", "en"),
                                        ctx.memory_block)
     plan_msg = HumanMessage(content=f"Current plan: {json.dumps(state.get('plan', {}))}")
-    messages: list[BaseMessage] = [SystemMessage(content=sys), plan_msg] + state["messages"]
+    current_msgs = list(state.get("messages", []))
+
+    # ORCH-2: summarize when approaching context budget (BR-ORCH-12)
+    total_tokens = count_message_tokens(current_msgs)
+    model_name = getattr(ctx.llm, "model", settings.llm_model)
+    tokens_freed = 0
+    if needs_summarization(total_tokens, model_name, budget=settings.context_budget):
+        current_msgs, tokens_freed = await summarize_messages(ctx.llm, current_msgs)
+        await ctx.emitter.emit(TaskStepType.context_summarized, {"tokens_freed": tokens_freed})
+
+    messages: list[BaseMessage] = [SystemMessage(content=sys), plan_msg] + current_msgs
     llm = ctx.llm.bind_tools(schemas) if schemas else ctx.llm
     resp = await llm.ainvoke(messages)
     tokens = count_message_tokens([resp])
@@ -80,7 +90,8 @@ async def think_node(state: AgentState, config: RunnableConfig) -> dict:
                            {"content": resp.content if isinstance(resp.content, str) else str(resp.content),
                             "tokens": tokens},
                            tokens_used=tokens)
-    return {"messages": [resp], "iteration": state.get("iteration", 0) + 1}
+    new_msgs = current_msgs + [resp] if tokens_freed > 0 else [resp]
+    return {"messages": new_msgs, "iteration": state.get("iteration", 0) + 1}
 
 
 async def act_node(state: AgentState, config: RunnableConfig) -> dict:

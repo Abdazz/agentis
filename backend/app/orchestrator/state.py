@@ -53,3 +53,4 @@ class AgentState(TypedDict, total=False):
     hitl_response: Optional[str]
     partial: bool                              # token budget hit (BR-ORCH-22)
     done: bool                                 # set by report node
+    _reflect_decision: Optional[str]           # "continue"|"report" — survives checkpointing

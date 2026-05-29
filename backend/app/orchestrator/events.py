@@ -72,5 +72,13 @@ class EventEmitter:
             for r in rows
         ]
 
+    async def emit_failed_cancelled(self) -> int:
+        """Emit a task_failed event with reason 'cancelled' (BR-TASK-21.5)."""
+        return await self.emit(
+            TaskStepType.report,
+            {"error": "Task cancelled by user", "error_code": "cancelled", "retryable": False},
+            sse_type="task_failed",
+        )
+
     async def close(self) -> None:
         await self._redis.aclose()

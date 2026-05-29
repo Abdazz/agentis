@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 from app.config import settings
 from app.database import init_db
 from app.logging_config import configure_logging
-from app.routers import auth
+from app.routers import auth, tasks
 from app.tools.registry import tool_registry
 from app.tools.init_registry import register_all_tools
 
@@ -48,6 +48,7 @@ async def request_logging_middleware(request: Request, call_next):
 
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
+app.include_router(tasks.router, prefix="/api/v1/tasks", tags=["tasks"])
 
 
 @app.get("/api/v1/health")

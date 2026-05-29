@@ -20,14 +20,14 @@ class Organization(TimestampMixin, Base):
     max_concurrent_tasks: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
-    memberships: Mapped[list["OrganizationMembership"]] = relationship(back_populates="organization")
+    memberships: Mapped[list["OrganizationMembership"]] = relationship(back_populates="organization", cascade="all, delete-orphan")
 
 
 class OrganizationMembership(Base):
     __tablename__ = "organization_memberships"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id"), nullable=False)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
     role: Mapped[UserRole] = mapped_column(Enum(UserRole, name="user_role"), nullable=False, default=UserRole.user)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

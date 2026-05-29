@@ -1,3 +1,5 @@
+from urllib.parse import urlparse, urlunparse
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import PostgresDsn
 
@@ -75,8 +77,14 @@ class Settings(BaseSettings):
 
     @property
     def checkpointer_dsn(self) -> str:
-        """psycopg DSN for the LangGraph checkpointer (direct Postgres, ADR-1C-01)."""
-        return str(self.postgres_direct_url).replace("postgresql+asyncpg://", "postgresql://")
+        """psycopg DSN for the LangGraph checkpointer (direct Postgres, ADR-1C-01).
+
+        Strips any ``postgresql+<driver>://`` scheme down to plain
+        ``postgresql://`` so psycopg (sync) accepts the URL regardless of
+        which async driver variant is stored in ``postgres_direct_url``.
+        """
+        parsed = urlparse(str(self.postgres_direct_url))
+        return urlunparse(parsed._replace(scheme="postgresql"))
 
 
 settings = Settings()

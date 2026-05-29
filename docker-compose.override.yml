@@ -8,3 +8,5 @@ services:
       - AGENTIS_LOG_LEVEL=DEBUG
   postgres:
     ports: ["5436:5432"]
+  redis:
+    ports: ["6379:6379"]

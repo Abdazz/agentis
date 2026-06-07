@@ -96,6 +96,19 @@ services:
       - ./squid/squid.conf:/etc/squid/squid.conf:ro
     restart: unless-stopped
 
+  ui:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://api:8000
+      NEXT_PUBLIC_DEFAULT_LOCALE: fr
+    depends_on:
+      - api
+    restart: unless-stopped
+
 volumes:
   postgres_data:
 

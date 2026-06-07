@@ -1791,7 +1791,7 @@ AGENTIS_LOG_LEVEL=INFO                # DEBUG|INFO|WARNING|ERROR
 - [x] Tools: `browser` (sandbox RPC), `code_executor`, `web_search`, `file_system` — phase-1b
 - [x] Kata Container sandbox with JSON-RPC tool server — phase-1b
 - [x] Squid egress proxy with static domain allowlist — phase-1b
-- [ ] Next.js 15 UI: task submission, SSE live trace, task history — phase-1d
+- [x] Next.js 15 UI: task submission, SSE live trace, task history — phase-1d
 - [x] FastAPI gateway: JWT auth, API key auth, rate limiting — phase-1a
 - [x] PostgreSQL schema (all tables from Section 14, indexes included) — phase-1a
 - [x] Alembic migration setup — phase-1a
@@ -1799,7 +1799,7 @@ AGENTIS_LOG_LEVEL=INFO                # DEBUG|INFO|WARNING|ERROR
 - [x] Celery task queue with Redis broker — phase-1c
 - [x] Short-term memory (Redis DB1) — phase-1c
 - [x] Docker Compose dev environment (all services) — phase-1a/1b/1c
-- [ ] English + French UI (next-intl) and agent prompts — phase-1d (agent prompts ✓ phase-1c)
+- [x] English + French UI (next-intl) and agent prompts — phase-1d (agent prompts ✓ phase-1c)
 - [x] Langfuse integration — phase-1c
 - [x] Structured logging (structlog → Loki) — phase-1a
 - [x] Context window management (summarization) — phase-1c

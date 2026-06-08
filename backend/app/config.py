@@ -84,6 +84,15 @@ class Settings(BaseSettings):
     voyage_model: str = "voyage-multilingual-2"
     voyage_embedding_dim: int = 1024
 
+    # MinIO / S3
+    minio_endpoint: str = "minio:9000"
+    minio_access_key: str = "agentis"
+    minio_secret_key: str = "agentis123"
+    minio_secure: bool = False
+    minio_bucket_uploads: str = "agentis-uploads"
+    minio_bucket_artifacts: str = "agentis-artifacts"
+    minio_presigned_expiry_seconds: int = 3600
+
     # HTTP Caller (safe domains — comma-separated, no spaces)
     http_caller_safe_domains: str = ""
 

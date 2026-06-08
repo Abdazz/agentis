@@ -17,6 +17,8 @@ async def test_registered_tool_defaults(db_session):
     assert tool.source == "builtin"
     assert tool.mcp_url is None
     assert tool.openapi_spec_url is None
+    assert tool.created_at is not None
+    assert tool.updated_at is not None
 
 
 @pytest.mark.asyncio

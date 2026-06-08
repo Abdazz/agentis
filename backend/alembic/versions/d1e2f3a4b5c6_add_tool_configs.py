@@ -21,7 +21,7 @@ def upgrade() -> None:
         sa.Column("name", sa.String(100), nullable=False),
         sa.Column("enabled_globally", sa.Boolean(), nullable=False, server_default="true"),
         sa.Column("allowed_orgs", JSON, nullable=True),
-        sa.Column("source", sa.String(20), nullable=False, server_default="'builtin'"),
+        sa.Column("source", sa.String(20), nullable=False, server_default="builtin"),
         sa.Column("mcp_url", sa.String(2048), nullable=True),
         sa.Column("openapi_spec_url", sa.String(2048), nullable=True),
         sa.Column("tool_metadata", JSON, nullable=True),

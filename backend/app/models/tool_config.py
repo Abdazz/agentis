@@ -1,12 +1,11 @@
-from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID, uuid4
-from sqlalchemy import String, Boolean, DateTime, JSON
+from sqlalchemy import String, Boolean, JSON
 from sqlalchemy.orm import Mapped, mapped_column
-from app.models.base import Base
+from app.models.base import Base, TimestampMixin
 
 
-class RegisteredTool(Base):
+class RegisteredTool(TimestampMixin, Base):
     __tablename__ = "tool_configs"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -19,12 +18,3 @@ class RegisteredTool(Base):
     mcp_url: Mapped[Optional[str]] = mapped_column(String(2048))
     openapi_spec_url: Mapped[Optional[str]] = mapped_column(String(2048))
     tool_metadata: Mapped[Optional[dict]] = mapped_column(JSON)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
-    )

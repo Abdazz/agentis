@@ -179,7 +179,13 @@ async def reflect_node(state: AgentState, config: RunnableConfig) -> dict:
     tool_messages = [m for m in state.get("messages", []) if hasattr(m, "tool_call_id")]
     if tool_messages:
         last_tool_content = getattr(tool_messages[-1], "content", "")
-        if isinstance(last_tool_content, str) and '"hitl_required": true' in last_tool_content.lower():
+        hitl_required = False
+        if isinstance(last_tool_content, str):
+            try:
+                hitl_required = bool(json.loads(last_tool_content).get("hitl_required"))
+            except (json.JSONDecodeError, AttributeError):
+                pass
+        if hitl_required:
             import time
             timeout_at = time.time() + 600  # 10-minute HITL window
             await ctx.emitter.emit(
@@ -187,6 +193,8 @@ async def reflect_node(state: AgentState, config: RunnableConfig) -> dict:
                 {"task_id": ctx.task_id, "reason": "Tool requires human confirmation", "timeout_at": timeout_at},
             )
             return {
+                "confidence": confidence,
+                "plan": plan.model_dump(),
                 "hitl_pending": True,
                 "hitl_timeout_at": timeout_at,
                 "_reflect_decision": "wait_hitl",

@@ -1,3 +1,4 @@
+from typing import Literal, Optional
 from pydantic import BaseModel, EmailStr, field_validator
 from app.auth.password import validate_password_strength
 
@@ -44,3 +45,12 @@ class ApiKeyResponse(BaseModel):
     created_at: str
     expires_at: str | None
     last_used_at: str | None
+
+
+class UserProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    language: Optional[Literal["fr", "en"]] = None
+
+
+class UserUsageResponse(BaseModel):
+    token_used_this_month: int

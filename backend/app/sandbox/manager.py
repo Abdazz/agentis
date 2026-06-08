@@ -23,13 +23,19 @@ class SandboxManager:
     """
 
     def __init__(self):
-        self._client = docker.from_env()
+        self._client = None  # lazily initialized on first use (API process has no Docker socket)
         self._sessions: dict[str, SandboxSession] = {}
+
+    @property
+    def _docker(self):
+        if self._client is None:
+            self._client = docker.from_env()
+        return self._client
 
     def _start_container(self, task_id: str) -> SandboxSession:
         import docker.types
 
-        container = self._client.containers.run(
+        container = self._docker.containers.run(
             image=settings.sandbox_image,
             detach=True,
             network=settings.sandbox_network,
@@ -88,7 +94,7 @@ class SandboxManager:
         if session is None:
             return
         try:
-            container = self._client.containers.get(session.container_id)
+            container = self._docker.containers.get(session.container_id)
             container.stop(timeout=10)
             container.remove()
             log.info("sandbox_destroyed", task_id=task_id)

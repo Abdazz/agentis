@@ -17,6 +17,7 @@ from app.orchestrator.context import (truncate_tool_output, count_message_tokens
                                       needs_summarization, summarize_messages, model_window)
 from app.orchestrator import prompts
 from app.orchestrator.tools_adapter import build_tool_schemas
+from app.memory.long_term import long_term_memory
 
 
 @dataclass
@@ -48,8 +49,21 @@ def _extract_json(text: str) -> dict:
 async def plan_node(state: AgentState, config: RunnableConfig) -> dict:
     ctx = _ctx(config)
     goal = state["goal"]
+
+    # Fetch relevant long-term memories (BR-MEM-21)
+    try:
+        lt_memories = await long_term_memory.search(user_id=ctx.user_id, query=goal, top_k=5)
+        lt_block = ""
+        if lt_memories:
+            lt_block = "\n\nRELEVANT MEMORIES FROM PAST SESSIONS:\n" + "\n".join(
+                f"- {m['summary']}: {m['content'][:200]}" for m in lt_memories
+            )
+    except Exception:
+        lt_block = ""  # Memory failure must not block planning
+
+    full_memory = (ctx.memory_block or "") + lt_block
     sys = prompts.system_with_language(prompts.PLAN_SYSTEM, state.get("language", "en"),
-                                       ctx.memory_block)
+                                       full_memory)
     resp = await ctx.llm.ainvoke([SystemMessage(content=sys), HumanMessage(content=goal)])
     content = resp.content if isinstance(resp.content, str) else str(resp.content)
     try:
@@ -62,7 +76,7 @@ async def plan_node(state: AgentState, config: RunnableConfig) -> dict:
     tokens = count_message_tokens([resp])
     await ctx.emitter.emit(TaskStepType.plan_update, plan.model_dump(),
                            tokens_used=tokens, sse_type="plan_created")
-    return {"plan": plan.model_dump(), "iteration": 0,
+    return {"plan": plan.model_dump(), "iteration": 0, "long_term_context": lt_block,
             "messages": [SystemMessage(content=sys), HumanMessage(content=goal)]}
 
 
@@ -176,6 +190,20 @@ async def report_node(state: AgentState, config: RunnableConfig) -> dict:
     await ctx.emitter.emit(TaskStepType.report,
                            {"summary": summary, "artifacts": state.get("artifacts", [])},
                            tokens_used=tokens, sse_type="task_completed")
+
+    # Persist task outcome to long-term memory (BR-MEM-20)
+    if summary and ctx.user_id:
+        try:
+            await long_term_memory.store(
+                user_id=ctx.user_id,
+                task_id=ctx.task_id,
+                content=summary[:1000],
+                summary=state.get("goal", "")[:200],
+                language=state.get("language", "fr"),
+            )
+        except Exception:
+            pass  # Memory persistence must not block task completion
+
     return {"done": True, "result_summary": summary, "messages": [resp]}
 
 

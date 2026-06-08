@@ -26,6 +26,9 @@ class User(TimestampMixin, Base):
     language: Mapped[str] = mapped_column(String(5), nullable=False, default="fr")
     token_used_this_month: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    active_organization_id: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True
+    )
 
     refresh_tokens: Mapped[list["RefreshToken"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     api_keys: Mapped[list["ApiKey"]] = relationship(back_populates="user", cascade="all, delete-orphan")

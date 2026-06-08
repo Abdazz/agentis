@@ -75,6 +75,24 @@ class Settings(BaseSettings):
     langfuse_public_key: str = ""
     langfuse_secret_key: str = ""
 
+    # Qdrant (long-term memory)
+    qdrant_url: str = "http://qdrant:6333"
+    qdrant_collection: str = "agentis_memory"
+
+    # Voyage AI (embeddings)
+    voyage_api_key: str = ""
+    voyage_model: str = "voyage-multilingual-2"
+    voyage_embedding_dim: int = 1024
+
+    # HTTP Caller (safe domains — comma-separated, no spaces)
+    http_caller_safe_domains: str = ""
+
+    @property
+    def http_caller_safe_domain_set(self) -> set[str]:
+        if not self.http_caller_safe_domains:
+            return set()
+        return {d.strip() for d in self.http_caller_safe_domains.split(",") if d.strip()}
+
     @property
     def checkpointer_dsn(self) -> str:
         """psycopg DSN for the LangGraph checkpointer (direct Postgres, ADR-1C-01).

@@ -105,13 +105,14 @@ services:
     volumes:
       - minio_data:/data
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
       interval: 10s
       retries: 5
       start_period: 15s
 
   minio-init:
     image: minio/mc:RELEASE.2024-01-16T02-44-48Z
+    restart: "no"
     depends_on:
       minio:
         condition: service_healthy

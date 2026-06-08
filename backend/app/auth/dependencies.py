@@ -1,9 +1,9 @@
 from datetime import datetime, timezone, timedelta
-from fastapi import Depends, HTTPException, Request, Header
+from fastapi import Depends, HTTPException, Request, Header, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db
-from app.models.user import User, ApiKey
+from app.models.user import User, ApiKey, UserRole
 from app.auth.jwt import decode_access_token, TokenExpiredError, TokenInvalidError
 from app.auth.api_keys import hash_api_key
 
@@ -70,6 +70,13 @@ async def get_current_user(
             detail={"code": "unauthenticated", "message": "User not found"},
         )
     return user
+
+
+async def require_admin(current_user: User = Depends(get_current_user)) -> User:
+    """Allow only admin and operator roles (spec §3.2 RBAC)."""
+    if current_user.role not in (UserRole.admin, UserRole.operator):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    return current_user
 
 
 async def verify_token_string(token: str) -> User:

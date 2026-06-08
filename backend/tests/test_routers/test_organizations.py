@@ -57,3 +57,29 @@ async def test_set_active_organization(client: AsyncClient):
     resp = await client.patch("/api/v1/organizations/active", json={"organization_id": org_id}, headers=_make_headers(token))
     assert resp.status_code == 200
     assert resp.json()["active_organization_id"] == org_id
+
+
+@pytest.mark.asyncio
+async def test_set_active_organization_rejects_non_member(client: AsyncClient):
+    """IDOR guard: user cannot set an org they don't belong to as their active org."""
+    # User A creates an org
+    email_a = f"u_{uuid.uuid4().hex[:8]}@test.com"
+    r_a = await client.post("/api/v1/auth/register", json={"email": email_a, "password": "Pass1234!Secret"})
+    token_a = r_a.json()["access_token"]
+    org_r = await client.post(
+        "/api/v1/organizations",
+        json={"name": "User A Org", "slug": f"userA-{uuid.uuid4().hex[:6]}"},
+        headers=_make_headers(token_a),
+    )
+    org_id = org_r.json()["id"]
+
+    # User B tries to set User A's org as their active org
+    email_b = f"u_{uuid.uuid4().hex[:8]}@test.com"
+    r_b = await client.post("/api/v1/auth/register", json={"email": email_b, "password": "Pass1234!Secret"})
+    token_b = r_b.json()["access_token"]
+    resp = await client.patch(
+        "/api/v1/organizations/active",
+        json={"organization_id": org_id},
+        headers=_make_headers(token_b),
+    )
+    assert resp.status_code == 403

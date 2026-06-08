@@ -26,6 +26,7 @@ class TaskStepType(str, enum.Enum):
     user_input = "user_input"
     context_summarized = "context_summarized"
     report = "report"
+    hitl_requested = "hitl_requested"
 
 
 class Task(TimestampMixin, Base):

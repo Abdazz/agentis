@@ -174,6 +174,24 @@ async def reflect_node(state: AgentState, config: RunnableConfig) -> dict:
                            {"confidence": confidence, "decision": decision,
                             "note": parsed.get("note", "")}, tokens_used=tokens)
     await ctx.emitter.emit(TaskStepType.plan_update, plan.model_dump(), sse_type="plan_updated")
+
+    # Check if the last tool result requires HITL (BR-TASK-50)
+    tool_messages = [m for m in state.get("messages", []) if hasattr(m, "tool_call_id")]
+    if tool_messages:
+        last_tool_content = getattr(tool_messages[-1], "content", "")
+        if isinstance(last_tool_content, str) and '"hitl_required": true' in last_tool_content.lower():
+            import time
+            timeout_at = time.time() + 600  # 10-minute HITL window
+            await ctx.emitter.emit(
+                TaskStepType.hitl_requested,
+                {"task_id": ctx.task_id, "reason": "Tool requires human confirmation", "timeout_at": timeout_at},
+            )
+            return {
+                "hitl_pending": True,
+                "hitl_timeout_at": timeout_at,
+                "_reflect_decision": "wait_hitl",
+            }
+
     return {"confidence": confidence, "plan": plan.model_dump(),
             "_reflect_decision": decision}
 
@@ -221,6 +239,44 @@ def route_after_think(state: AgentState) -> str:
 def route_after_reflect(state: AgentState) -> str:
     if state.get("_reflect_decision") == "report":
         return "report"
+    if state.get("_reflect_decision") == "wait_hitl":
+        return "wait_hitl"
     if state.get("iteration", 0) >= state.get("max_iterations", settings.default_max_iterations):
+        return "report"
+    return "think"
+
+
+async def wait_hitl_node(state: AgentState, config: RunnableConfig) -> dict:
+    """Block orchestrator until user responds or timeout (BR-TASK-51)."""
+    import time
+    from app.services.hitl import hitl_coordinator
+    ctx = _ctx(config)
+
+    timeout_at = state.get("hitl_timeout_at") or (time.time() + 600)
+    remaining = max(0.0, timeout_at - time.time())
+
+    response = await hitl_coordinator.wait_for_response(
+        task_id=ctx.task_id, timeout_seconds=remaining
+    )
+
+    if response is None:
+        await ctx.emitter.emit(TaskStepType.reflect, {"note": "HITL timeout — proceeding to report"})
+        return {
+            "hitl_pending": False,
+            "hitl_timeout_at": None,
+            "_reflect_decision": "report",
+        }
+
+    await ctx.emitter.emit(TaskStepType.reflect, {"note": "HITL response received"})
+    return {
+        "hitl_pending": False,
+        "hitl_timeout_at": None,
+        "hitl_response": response,
+        "_reflect_decision": "continue",
+    }
+
+
+def route_after_wait_hitl(state: AgentState) -> str:
+    if state.get("_reflect_decision") == "report":
         return "report"
     return "think"

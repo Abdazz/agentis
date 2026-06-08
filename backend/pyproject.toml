@@ -16,6 +16,7 @@ dependencies = [
     "pydantic[email]>=2.7",
     "pyjwt[crypto]>=2.8",
     "passlib[bcrypt]>=1.7",
+    "bcrypt>=3.2.0,<4.0.0",
     "redis>=5.0",
     "structlog>=24.0",
     "sse-starlette>=2.1",
@@ -31,6 +32,10 @@ dependencies = [
     "langfuse>=2.50",
     "tiktoken>=0.8",
     "psycopg[binary,pool]>=3.2",
+    "qdrant-client>=1.9,<1.10",
+    "voyageai>=0.2",
+    "minio>=7.2",
+    "prometheus-client>=0.20",
 ]
 
 [project.optional-dependencies]

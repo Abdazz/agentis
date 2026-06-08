@@ -70,3 +70,20 @@ async def get_current_user(
             detail={"code": "unauthenticated", "message": "User not found"},
         )
     return user
+
+
+async def verify_token_string(token: str) -> User:
+    """Verify a raw JWT string (for WebSocket query param auth)."""
+    from app.database import AsyncSessionLocal
+    async with AsyncSessionLocal() as db:
+        try:
+            payload = decode_access_token(token)
+        except (TokenExpiredError, TokenInvalidError):
+            raise HTTPException(status_code=401, detail="Invalid token")
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        user = await db.get(User, user_id)
+        if user is None or user.deleted_at:
+            raise HTTPException(status_code=401, detail="User not found")
+        return user

@@ -94,6 +94,7 @@ class Settings(BaseSettings):
     minio_secure: bool = False
     minio_bucket_uploads: str = "agentis-uploads"
     minio_bucket_artifacts: str = "agentis-artifacts"
+    minio_bucket_backups: str = "agentis-backups"
     minio_presigned_expiry_seconds: int = 3600
 
     # HTTP Caller (safe domains — comma-separated, no spaces)

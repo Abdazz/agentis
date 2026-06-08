@@ -74,6 +74,41 @@ class Settings(BaseSettings):
     langfuse_host: str = ""
     langfuse_public_key: str = ""
     langfuse_secret_key: str = ""
+    prometheus_enabled: bool = True
+    loki_url: str = ""
+    loki_app_name: str = "agentis-backend"
+
+    # Qdrant (long-term memory)
+    qdrant_url: str = "http://qdrant:6333"
+    qdrant_collection: str = "agentis_memory"
+
+    # Voyage AI (embeddings)
+    voyage_api_key: str = ""
+    voyage_model: str = "voyage-multilingual-2"
+    voyage_embedding_dim: int = 1024
+
+    # MinIO / S3
+    minio_endpoint: str = "minio:9000"
+    minio_access_key: str = "agentis"
+    minio_secret_key: str = "agentis123"
+    minio_secure: bool = False
+    minio_bucket_uploads: str = "agentis-uploads"
+    minio_bucket_artifacts: str = "agentis-artifacts"
+    minio_bucket_backups: str = "agentis-backups"
+    minio_presigned_expiry_seconds: int = 3600
+
+    # HTTP Caller (safe domains — comma-separated, no spaces)
+    http_caller_safe_domains: str = ""
+
+    # Webhook security
+    fernet_key: str = ""  # Set in production: Fernet.generate_key().decode()
+
+    @property
+    def http_caller_safe_domain_set(self) -> set[str]:
+        if not self.http_caller_safe_domains:
+            return set()
+        normalized = self.http_caller_safe_domains.replace("\r\n", ",").replace("\n", ",")
+        return {d.strip() for d in normalized.split(",") if d.strip()}
 
     @property
     def checkpointer_dsn(self) -> str:

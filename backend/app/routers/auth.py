@@ -11,6 +11,7 @@ from app.models.user import User, RefreshToken, ApiKey
 from app.schemas.auth import (
     RegisterRequest, LoginRequest,
     UserResponse, ApiKeyCreateRequest, ApiKeyResponse,
+    UserProfileUpdate, UserUsageResponse,
 )
 from app.auth.password import hash_password, verify_password
 from app.auth.jwt import create_access_token
@@ -352,3 +353,44 @@ async def revoke_api_key(
         )
     key.revoked_at = datetime.now(timezone.utc)
     await db.commit()
+
+
+@router.get("/users/me", response_model=UserResponse)
+async def get_current_user_profile(
+    user: User = Depends(get_current_user),
+) -> UserResponse:
+    return UserResponse(
+        id=str(user.id),
+        email=user.email,
+        name=user.name,
+        language=user.language,
+        role=user.role.value,
+    )
+
+
+@router.patch("/users/me", response_model=UserResponse)
+async def update_current_user_profile(
+    body: UserProfileUpdate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> UserResponse:
+    if body.name is not None:
+        user.name = body.name
+    if body.language is not None:
+        user.language = body.language
+    await db.flush()
+    await db.refresh(user)
+    return UserResponse(
+        id=str(user.id),
+        email=user.email,
+        name=user.name,
+        language=user.language,
+        role=user.role.value,
+    )
+
+
+@router.get("/users/me/usage", response_model=UserUsageResponse)
+async def get_current_user_usage(
+    user: User = Depends(get_current_user),
+) -> UserUsageResponse:
+    return UserUsageResponse(token_used_this_month=user.token_used_this_month or 0)

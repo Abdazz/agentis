@@ -9,6 +9,7 @@ from app.database import init_db
 from app.logging_config import configure_logging
 from app.routers import auth, tasks
 from app.routers.files import router as files_router
+from app.routers.ws import router as ws_router
 from app.tools.registry import tool_registry
 from app.tools.init_registry import register_all_tools
 
@@ -51,6 +52,7 @@ async def request_logging_middleware(request: Request, call_next):
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(tasks.router, prefix="/api/v1/tasks", tags=["tasks"])
 app.include_router(files_router, prefix="/api/v1")
+app.include_router(ws_router, prefix="/api/v1")
 
 
 @app.get("/api/v1/health")

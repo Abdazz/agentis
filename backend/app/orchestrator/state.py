@@ -51,6 +51,7 @@ class AgentState(TypedDict, total=False):
     failures: int                              # total tool/LLM failures (BR-ORCH-34)
     hitl_pending: bool
     hitl_response: Optional[str]
+    hitl_timeout_at: Optional[float]       # Unix timestamp when HITL expires
     long_term_context: str                     # top-5 relevant memories injected at plan time
     partial: bool                              # token budget hit (BR-ORCH-22)
     done: bool                                 # set by report node

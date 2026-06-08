@@ -91,7 +91,8 @@ class Settings(BaseSettings):
     def http_caller_safe_domain_set(self) -> set[str]:
         if not self.http_caller_safe_domains:
             return set()
-        return {d.strip() for d in self.http_caller_safe_domains.split(",") if d.strip()}
+        normalized = self.http_caller_safe_domains.replace("\r\n", ",").replace("\n", ",")
+        return {d.strip() for d in normalized.split(",") if d.strip()}
 
     @property
     def checkpointer_dsn(self) -> str:

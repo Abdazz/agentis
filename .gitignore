@@ -10,9 +10,6 @@ dist/
 htmlcov/
 .coverage
 
-# sub-repos (independent git repos nested inside parent)
-backend/
-frontend/
 
 # Visual companion generated files
 .superpowers/

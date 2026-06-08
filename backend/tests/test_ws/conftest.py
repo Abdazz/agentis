@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sess
 from sqlalchemy.pool import NullPool
 from starlette.testclient import TestClient
 from app.models.user import User, UserRole
+from app.models.task import Task, TaskStatus
 from app.auth.jwt import create_access_token
 from app.main import app
 
@@ -44,6 +45,27 @@ async def test_user() -> User:
         u = await session.get(User, user.id)
         if u:
             await session.delete(u)
+            await session.commit()
+
+
+@pytest_asyncio.fixture
+async def test_task(test_user: User) -> Task:
+    """Create and commit a real Task owned by test_user."""
+    task = Task(
+        id=uuid.uuid4(),
+        user_id=test_user.id,
+        goal="HITL test task",
+        status=TaskStatus.running,
+    )
+    async with _WSSessionLocal() as session:
+        session.add(task)
+        await session.commit()
+        await session.refresh(task)
+    yield task
+    async with _WSSessionLocal() as session:
+        t = await session.get(Task, task.id)
+        if t:
+            await session.delete(t)
             await session.commit()
 
 

@@ -68,6 +68,16 @@ async def set_active_organization(
     org = await db.get(Organization, UUID(body.organization_id))
     if not org or org.deleted_at:
         raise HTTPException(status_code=404, detail="Organization not found")
+    # Verify the requesting user is actually a member of this org (IDOR guard)
+    member = await db.scalar(
+        select(OrganizationMembership).where(
+            OrganizationMembership.organization_id == org.id,
+            OrganizationMembership.user_id == current_user.id,
+        )
+    )
+    if member is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Not a member of this organization")
     # Attach session to current_user before modification
     user = await db.get(User, current_user.id)
     user.active_organization_id = org.id

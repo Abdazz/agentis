@@ -1,7 +1,11 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import get_current_user
+from app.database import get_db
 from app.models.user import User
+from app.models.task import Artifact, Task
 from app.services.minio_client import minio_service, object_name_for_upload
 from app.schemas.files import FileUploadInitResponse, FileDownloadResponse
 from app.config import settings
@@ -26,7 +30,23 @@ async def initiate_upload(body: UploadInitRequest, current_user: User = Depends(
 
 
 @router.get("/artifacts/{object_path:path}/url", response_model=FileDownloadResponse)
-async def get_artifact_download_url(object_path: str, current_user: User = Depends(get_current_user)):
+async def get_artifact_download_url(
+    object_path: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    # Verify the artifact belongs to the requesting user before minting a presigned URL (IDOR guard)
+    result = await db.execute(
+        select(Artifact)
+        .join(Task, Task.id == Artifact.task_id)
+        .where(Artifact.storage_key == object_path)
+        .where(Artifact.deleted_at.is_(None))
+        .where(Task.user_id == current_user.id)
+    )
+    artifact = result.scalar_one_or_none()
+    if artifact is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artifact not found")
+
     url = minio_service.presigned_download_url(
         object_name=object_path,
         bucket=settings.minio_bucket_artifacts,

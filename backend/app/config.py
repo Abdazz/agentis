@@ -74,6 +74,9 @@ class Settings(BaseSettings):
     langfuse_host: str = ""
     langfuse_public_key: str = ""
     langfuse_secret_key: str = ""
+    prometheus_enabled: bool = True
+    loki_url: str = ""
+    loki_app_name: str = "agentis-backend"
 
     # Qdrant (long-term memory)
     qdrant_url: str = "http://qdrant:6333"

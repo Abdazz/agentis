@@ -99,6 +99,9 @@ class Settings(BaseSettings):
     # HTTP Caller (safe domains — comma-separated, no spaces)
     http_caller_safe_domains: str = ""
 
+    # Webhook security
+    fernet_key: str = ""  # Set in production: Fernet.generate_key().decode()
+
     @property
     def http_caller_safe_domain_set(self) -> set[str]:
         if not self.http_caller_safe_domains:

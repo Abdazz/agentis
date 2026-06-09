@@ -5,6 +5,7 @@ from app.tools.file_system import FileSystemTool
 from app.tools.web_search import WebSearchTool
 from app.tools.doc_parser import DocParserTool
 from app.tools.http_caller import HttpCallerTool
+from app.tools.email_tool import EmailTool
 
 _BUILTIN_TOOLS = [
     BrowserTool,
@@ -13,6 +14,7 @@ _BUILTIN_TOOLS = [
     WebSearchTool,
     DocParserTool,
     HttpCallerTool,
+    EmailTool,
 ]
 
 

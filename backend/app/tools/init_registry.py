@@ -6,6 +6,7 @@ from app.tools.web_search import WebSearchTool
 from app.tools.doc_parser import DocParserTool
 from app.tools.http_caller import HttpCallerTool
 from app.tools.email_tool import EmailTool
+from app.tools.calendar_tool import CalendarTool
 
 _BUILTIN_TOOLS = [
     BrowserTool,
@@ -15,6 +16,7 @@ _BUILTIN_TOOLS = [
     DocParserTool,
     HttpCallerTool,
     EmailTool,
+    CalendarTool,
 ]
 
 

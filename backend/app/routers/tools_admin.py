@@ -30,10 +30,8 @@ class RegisterMcpRequest(BaseModel):
     server_url: str
 
 
-class OpenAPIToolRequest(BaseModel):
-    name: str
-    openapi_spec_url: str
-    enabled_globally: bool = True
+class RegisterOpenApiRequest(BaseModel):
+    spec_url: str
 
 
 @router.get("", response_model=list[ToolConfigResponse])
@@ -107,26 +105,29 @@ async def register_mcp_server(
     return {"registered": registered}
 
 
-@router.post("/openapi", response_model=ToolConfigResponse, status_code=status.HTTP_201_CREATED)
-async def register_openapi_tool(
-    body: OpenAPIToolRequest,
+@router.post("/openapi", status_code=status.HTTP_201_CREATED)
+async def register_openapi_spec(
+    body: RegisterOpenApiRequest,
     _: User = Depends(require_admin),
     db=Depends(get_db),
 ):
-    """Register a new tool from an OpenAPI spec URL (stub — full parsing in Phase 3A Task 5)."""
-    existing = await db.execute(select(RegisteredTool).where(RegisteredTool.name == body.name))
-    if existing.scalar_one_or_none() is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Tool '{body.name}' already registered",
-        )
-    tool = RegisteredTool(
-        name=body.name,
-        source="openapi",
-        openapi_spec_url=body.openapi_spec_url,
-        enabled_globally=body.enabled_globally,
-    )
-    db.add(tool)
+    """Fetch an OpenAPI spec and auto-register all discovered operations as tools."""
+    from app.services.openapi_tool_gen import fetch_and_generate
+    try:
+        tools = await fetch_and_generate(body.spec_url)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY,
+                            detail=f"OpenAPI fetch failed: {e}")
+    from app.tools.registry import tool_registry
+    registered = []
+    for tool in tools:
+        if tool_registry.get(tool.name) is None:
+            tool_registry._tools[tool.name] = tool
+        result = await db.execute(select(RegisteredTool).where(RegisteredTool.name == tool.name))
+        existing = result.scalar_one_or_none()
+        if existing is None:
+            db.add(RegisteredTool(name=tool.name, source="openapi",
+                                  openapi_spec_url=body.spec_url))
+            registered.append(tool.name)
     await db.commit()
-    await db.refresh(tool)
-    return tool
+    return {"registered": registered}

@@ -14,7 +14,16 @@ class LongTermMemory:
     def __init__(self) -> None:
         self._qdrant_sync = QdrantClient(url=settings.qdrant_url)
         self._qdrant_async = AsyncQdrantClient(url=settings.qdrant_url)
-        self._voyage = voyageai.Client(api_key=settings.voyage_api_key) if settings.voyage_api_key else None
+
+        # Initialize Voyage AI client with optional self-hosted base_url
+        if settings.voyage_api_key:
+            voyage_kwargs = {"api_key": settings.voyage_api_key}
+            if settings.voyage_base_url:
+                voyage_kwargs["base_url"] = settings.voyage_base_url
+            self._voyage = voyageai.Client(**voyage_kwargs)
+        else:
+            self._voyage = None
+
         self._collection = settings.qdrant_collection
 
     def ensure_collection(self) -> None:

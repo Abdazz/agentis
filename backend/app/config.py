@@ -87,6 +87,7 @@ class Settings(BaseSettings):
     voyage_api_key: str = ""
     voyage_model: str = "voyage-multilingual-2"
     voyage_embedding_dim: int = 1024
+    voyage_base_url: str = ""  # e.g. http://voyage-server:8080/v1 for self-hosted
 
     # MinIO / S3
     minio_endpoint: str = "minio:9000"

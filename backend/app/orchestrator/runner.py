@@ -51,6 +51,14 @@ async def run_task(task_id_str: str, llm=None, skip_sandbox: bool = False) -> No
         allowed_tools = task.allowed_tools
         parent_task_id = task.parent_task_id  # None for top-level tasks
 
+        # Supervisor agents always have dispatch + gather tools available (BR-MULTI-01)
+        if task.agent_role == "supervisor":
+            supervisor_tools = ["dispatch_subtask", "gather_results"]
+            if allowed_tools is None:
+                allowed_tools = supervisor_tools
+            else:
+                allowed_tools = list(allowed_tools) + supervisor_tools
+
         # Load user and their active org for LLM override + budget (BR-ADMIN-21, BR-ORCH-20)
         from sqlalchemy import select as _select
         from app.models.org import Organization

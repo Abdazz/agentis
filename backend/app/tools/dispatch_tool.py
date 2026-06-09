@@ -41,11 +41,27 @@ class DispatchTool(BaseTool):
     async def execute(self, params: dict, session: SessionContext) -> ToolResult:
         goal = params.get("goal", "")
         agent_role = params.get("agent_role", "research")
-        allowed_tools = params.get("allowed_tools") or self._ROLE_TOOLS.get(agent_role, [])
+
+        # Validate role is known before use (prevents unknown roles getting default [] tools)
+        if agent_role not in self._ROLE_TOOLS:
+            return ToolResult(ok=False, error=f"Unknown agent_role '{agent_role}'. Must be one of: {list(self._ROLE_TOOLS)}")
+
+        role_allowed = set(self._ROLE_TOOLS[agent_role])
+        requested = set(params.get("allowed_tools") or role_allowed)
+
         parent_task_id = uuid.UUID(session.task_id)
 
         async with AsyncSessionLocal() as db:
             parent = await db.get(Task, parent_task_id)
+            # Intersect role ceiling, caller request, and parent's own tool allowlist.
+            # Child can never exceed the parent's permissions (BR-MULTI-PERM-01).
+            # isinstance guard: JSON column returns None or list; other types (e.g. MagicMock in tests) fall back to role_allowed.
+            parent_tools = parent.allowed_tools
+            parent_allowed = set(parent_tools) if isinstance(parent_tools, list) and parent_tools else role_allowed
+            allowed_tools = sorted(role_allowed & requested & parent_allowed)
+            if not allowed_tools:
+                return ToolResult(ok=False, error="No permitted tools for the requested role and parent constraints")
+
             child = Task(
                 id=uuid.uuid4(),
                 user_id=parent.user_id,

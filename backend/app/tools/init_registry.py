@@ -7,6 +7,8 @@ from app.tools.doc_parser import DocParserTool
 from app.tools.http_caller import HttpCallerTool
 from app.tools.email_tool import EmailTool
 from app.tools.calendar_tool import CalendarTool
+from app.tools.dispatch_tool import DispatchTool
+from app.tools.gather_tool import GatherTool
 
 _BUILTIN_TOOLS = [
     BrowserTool,
@@ -17,6 +19,8 @@ _BUILTIN_TOOLS = [
     HttpCallerTool,
     EmailTool,
     CalendarTool,
+    DispatchTool,
+    GatherTool,
 ]
 
 

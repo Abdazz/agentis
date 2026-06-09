@@ -49,6 +49,7 @@ async def run_task(task_id_str: str, llm=None, skip_sandbox: bool = False) -> No
         goal, language = task.goal, task.language
         max_iter = min(task.max_iterations, settings.max_iterations_cap)
         allowed_tools = task.allowed_tools
+        parent_task_id = task.parent_task_id  # None for top-level tasks
 
         # Load user and their active org for LLM override + budget (BR-ADMIN-21, BR-ORCH-20)
         from sqlalchemy import select as _select
@@ -123,6 +124,18 @@ async def run_task(task_id_str: str, llm=None, skip_sandbox: bool = False) -> No
                           partial=(final_state or {}).get("partial", False),
                           total_tokens=total_tokens, total_steps=total_steps,
                           completed_at=datetime.now(timezone.utc))
+        # Notify supervisor if this is a child task (Phase 4A)
+        if parent_task_id is not None:
+            try:
+                from app.services.agent_team_bus import get_agent_team_bus
+                bus = get_agent_team_bus()
+                await bus.publish(str(parent_task_id), {
+                    "subtask_id": task_id_str,
+                    "status": "completed",
+                    "result": summary,
+                })
+            except Exception:
+                log.warning("agent_bus_publish_failed", task_id=task_id_str)
         # Short-term memory (MEM-2)
         if summary:
             await stm.store_task_summary(str(user_id), summary[:400])

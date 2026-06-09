@@ -1,7 +1,8 @@
 """Voice endpoints: ASR transcription + TTS synthesis (Phase 4B)."""
+import asyncio
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from fastapi.responses import Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from app.auth.dependencies import get_current_user
 from app.models.user import User
 from app.services.voice_asr import transcribe_bytes
@@ -13,7 +14,7 @@ _MAX_AUDIO_BYTES = 25 * 1024 * 1024  # 25 MB
 
 
 class SynthesizeRequest(BaseModel):
-    text: str
+    text: str = Field(..., max_length=5000)
     voice: str | None = None
 
 
@@ -30,7 +31,9 @@ async def transcribe(
 ) -> TranscribeResponse:
     data = await audio.read(_MAX_AUDIO_BYTES)
     try:
-        result = transcribe_bytes(data)
+        result = await asyncio.get_event_loop().run_in_executor(
+            None, transcribe_bytes, data
+        )
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
     return TranscribeResponse(**result)

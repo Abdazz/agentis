@@ -128,6 +128,12 @@ async def test_patch_llm_config_requires_operator_not_admin(client, db_session):
 
 @pytest.mark.asyncio
 async def test_patch_llm_config_creates_record(client, db_session):
+    from sqlalchemy import delete
+    from app.models.system_config import SystemConfig
+    # Clear any existing record from prior tests so this test is order-independent
+    await db_session.execute(delete(SystemConfig).where(SystemConfig.key == "llm_config"))
+    await db_session.commit()
+
     op = await _make_user(db_session, "operator")
     token = await _login(client, op.email)
     resp = await client.patch(

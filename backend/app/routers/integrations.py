@@ -32,11 +32,21 @@ class IntegrationResponse(BaseModel):
 
 
 def _encrypt(credentials: dict) -> str:
+    if not settings.fernet_key:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Integration credentials storage is not configured (AGENTIS_FERNET_KEY missing)"
+        )
     f = Fernet(settings.fernet_key.encode())
     return f.encrypt(json.dumps(credentials).encode()).decode()
 
 
 def _decrypt(encrypted: str) -> dict:
+    if not settings.fernet_key:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Integration credentials storage is not configured (AGENTIS_FERNET_KEY missing)"
+        )
     f = Fernet(settings.fernet_key.encode())
     return json.loads(f.decrypt(encrypted.encode()).decode())
 

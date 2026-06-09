@@ -30,6 +30,19 @@ async def lifespan(app: FastAPI):
     register_all_tools()
     async with AsyncSessionLocal() as db:
         await seed_tool_configs(db)
+
+    # Warn if fernet_key is missing (integrations feature requires it)
+    if not settings.fernet_key:
+        log.warning("fernet_key_not_set",
+                    detail="AGENTIS_FERNET_KEY is not configured — /integrations endpoints will fail")
+    else:
+        try:
+            from cryptography.fernet import Fernet as _Fernet
+            _Fernet(settings.fernet_key.encode())
+        except Exception:
+            log.warning("fernet_key_invalid",
+                        detail="AGENTIS_FERNET_KEY is set but not a valid Fernet key")
+
     log.info("agentis_api_started", environment=settings.environment,
              tools=tool_registry.list_names())
     yield

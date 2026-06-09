@@ -30,6 +30,7 @@ class TaskResponse(BaseModel):
     language: str
     plan: Optional[dict] = None
     max_iterations: int
+    allowed_tools: Optional[list[str]] = None
     result_summary: Optional[str] = None
     error_message: Optional[str] = None
     error_code: Optional[str] = None

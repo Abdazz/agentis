@@ -18,6 +18,7 @@ from app.orchestrator.events import EventEmitter, channel_for
 from app.worker.tasks import run_agent_task
 from app.worker.celery_app import celery_app
 from app.sandbox.manager import sandbox_manager
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 log = structlog.get_logger()
@@ -35,20 +36,50 @@ def _to_response(task, request: Request | None = None) -> TaskResponse:
 async def create_task(body: TaskCreate, request: Request,
                       user: User = Depends(get_current_user),
                       db: AsyncSession = Depends(get_db)):
-    # Concurrency limit (BR-TASK-07)
+    from app.models.org import Organization
+
+    # Load user's active org (if any)
+    org = None
+    if user.active_organization_id is not None:
+        result = await db.execute(
+            select(Organization).where(
+                Organization.id == user.active_organization_id,
+                Organization.deleted_at.is_(None),
+            )
+        )
+        org = result.scalar_one_or_none()
+
+    # Concurrency limit from org or default 5 (BR-TASK-07)
+    max_concurrent = org.max_concurrent_tasks if org is not None else 5
     running = await task_repo.count_running_tasks(db, user_id=user.id)
-    if running >= 5:
+    if running >= max_concurrent:
         raise HTTPException(status_code=429, detail={
             "code": "concurrency_limit",
-            "message": "You have reached the maximum of 5 concurrent running tasks.",
+            "message": f"You have reached the maximum of {max_concurrent} concurrent running tasks.",
         })
+
+    # Per-org tool restriction enforcement (BR-ADMIN-13)
+    requested_tools = body.options.allowed_tools
+    if org is not None and org.allowed_tools is not None:
+        allowed_set = set(org.allowed_tools)
+        if requested_tools:
+            disallowed = set(requested_tools) - allowed_set
+            if disallowed:
+                raise HTTPException(status_code=422, detail={
+                    "code": "invalid_input",
+                    "message": f"Tools not allowed for this organization: {sorted(disallowed)}",
+                })
+        else:
+            # Default to org's allowed tools when none specified
+            requested_tools = org.allowed_tools
+
     # Defaults + clamping (BR-TASK-02/03)
     language = body.language or user.language
     requested = body.options.max_iterations or settings.default_max_iterations
     max_iterations = min(requested, settings.max_iterations_cap)
     task = await task_repo.create_task(
         db, user_id=user.id, goal=body.goal, language=language,
-        max_iterations=max_iterations, allowed_tools=body.options.allowed_tools,
+        max_iterations=max_iterations, allowed_tools=requested_tools,
         notify_webhook=body.options.notify_webhook,
     )
     await db.commit()

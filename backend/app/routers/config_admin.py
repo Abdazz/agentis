@@ -1,8 +1,8 @@
 import json
-from typing import Optional
+from typing import Literal, Optional
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from app.auth.dependencies import require_operator
 from app.config import settings
@@ -30,7 +30,7 @@ class LlmConfigResponse(BaseModel):
 
 
 class LlmConfigPatch(BaseModel):
-    provider: Optional[str] = None
+    provider: Optional[Literal['anthropic', 'openai', 'mistral', 'groq', 'deepseek', 'ollama']] = None
     model: Optional[str] = None
     api_key: Optional[str] = None
     base_url: Optional[str] = None
@@ -100,7 +100,7 @@ async def patch_llm_config(
     stmt = (
         pg_insert(SystemConfig)
         .values(key=_CONFIG_KEY, value=serialized)
-        .on_conflict_do_update(index_elements=["key"], set_={"value": serialized})
+        .on_conflict_do_update(index_elements=["key"], set_={"value": serialized, "updated_at": func.now()})
     )
     await db.execute(stmt)
     await db.commit()

@@ -40,5 +40,14 @@ class MinioService:
         self._client.put_object(bkt, object_name, BytesIO(data), length=len(data),
                                  content_type=content_type)
 
+    def download_bytes(self, object_name: str, bucket: str | None = None) -> bytes:
+        bkt = bucket or settings.minio_bucket_uploads
+        response = self._client.get_object(bkt, object_name)
+        try:
+            return response.read()
+        finally:
+            response.close()
+            response.release_conn()
+
 
 minio_service = MinioService()

@@ -29,6 +29,37 @@ async def initiate_upload(body: UploadInitRequest, current_user: User = Depends(
     )
 
 
+class ScanRequest(BaseModel):
+    object_name: str
+
+
+class ScanResponse(BaseModel):
+    object_name: str
+    clean: bool
+    virus: str | None = None
+    skipped: bool = False
+
+
+@router.post("/scan", response_model=ScanResponse)
+async def scan_file(
+    body: ScanRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """Download object from MinIO and run ClamAV scan."""
+    if not settings.clamav_enabled:
+        return ScanResponse(object_name=body.object_name, clean=True, skipped=True)
+
+    data = minio_service.download_bytes(object_name=body.object_name)
+    from app.services.clamav_scanner import scan_bytes
+    result = scan_bytes(data, socket_path=settings.clamav_socket)
+    return ScanResponse(
+        object_name=body.object_name,
+        clean=result["clean"],
+        virus=result.get("virus"),
+        skipped=result.get("skipped", False),
+    )
+
+
 @router.get("/artifacts/{object_path:path}/url", response_model=FileDownloadResponse)
 async def get_artifact_download_url(
     object_path: str,

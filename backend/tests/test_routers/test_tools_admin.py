@@ -181,20 +181,57 @@ async def test_register_mcp_server_returns_502_on_discovery_failure(client, db_s
 
 
 @pytest.mark.asyncio
-async def test_register_openapi_tool(client, db_session):
+async def test_register_openapi_spec_discovers_and_registers_tools(client, db_session):
+    """POST /admin/tools/openapi fetches an OpenAPI spec and registers all operations as tools."""
+    from app.services.openapi_tool_gen import OpenApiProxyTool
+
+    op_id = uuid.uuid4().hex[:6]
+    fake_tool = OpenApiProxyTool(
+        operation_id=f"getWeather_{op_id}",
+        method="GET",
+        base_url="https://api.example.com",
+        path="/weather",
+        description="Get weather",
+        input_schema={"type": "object", "properties": {"city": {"type": "string"}}},
+    )
+
     op = await _make_operator(db_session)
     token = await _login(client, op.email)
-    tool_name = f"openapi_tool_{uuid.uuid4().hex[:6]}"
-    resp = await client.post(
-        "/api/v1/admin/tools/openapi",
-        headers={"Authorization": f"Bearer {token}"},
-        json={"name": tool_name, "openapi_spec_url": "http://api.example.com/openapi.json"},
-    )
+
+    with patch(
+        "app.services.openapi_tool_gen.fetch_and_generate",
+        new=AsyncMock(return_value=[fake_tool]),
+    ):
+        resp = await client.post(
+            "/api/v1/admin/tools/openapi",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"spec_url": "http://api.example.com/openapi.json"},
+        )
+
     assert resp.status_code == 201
     data = resp.json()
-    assert data["name"] == tool_name
-    assert data["source"] == "openapi"
-    assert data["openapi_spec_url"] == "http://api.example.com/openapi.json"
+    assert f"openapi__getWeather_{op_id}" in data["registered"]
+
+
+@pytest.mark.asyncio
+async def test_register_openapi_spec_returns_502_on_fetch_failure(client, db_session):
+    """Returns 502 when fetch_and_generate raises (unreachable spec URL)."""
+    op = await _make_operator(db_session)
+    token = await _login(client, op.email)
+
+    with patch(
+        "app.services.openapi_tool_gen.fetch_and_generate",
+        new=AsyncMock(side_effect=Exception("connection refused")),
+    ):
+        resp = await client.post(
+            "/api/v1/admin/tools/openapi",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"spec_url": "http://unreachable-server/openapi.json"},
+        )
+
+    assert resp.status_code == 502
+    body = resp.json()
+    assert "OpenAPI fetch failed" in body["error"]["message"]
 
 
 @pytest.mark.asyncio

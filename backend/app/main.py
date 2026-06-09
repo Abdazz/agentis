@@ -15,7 +15,8 @@ from app.routers.organizations import router as orgs_router
 from app.routers.webhooks import router as webhooks_router
 from app.observability.metrics import metrics_router
 from app.tools.registry import tool_registry
-from app.tools.init_registry import register_all_tools
+from app.tools.init_registry import register_all_tools, seed_tool_configs
+from app.database import AsyncSessionLocal
 
 configure_logging()
 log = structlog.get_logger()
@@ -25,6 +26,8 @@ log = structlog.get_logger()
 async def lifespan(app: FastAPI):
     await init_db()
     register_all_tools()
+    async with AsyncSessionLocal() as db:
+        await seed_tool_configs(db)
     log.info("agentis_api_started", environment=settings.environment,
              tools=tool_registry.list_names())
     yield

@@ -6,12 +6,29 @@ from app.tools.web_search import WebSearchTool
 from app.tools.doc_parser import DocParserTool
 from app.tools.http_caller import HttpCallerTool
 
+_BUILTIN_TOOLS = [
+    BrowserTool,
+    CodeExecutorTool,
+    FileSystemTool,
+    WebSearchTool,
+    DocParserTool,
+    HttpCallerTool,
+]
+
 
 def register_all_tools() -> None:
     """Register all built-in tools. Called once at app startup."""
-    tool_registry.register(BrowserTool)
-    tool_registry.register(CodeExecutorTool)
-    tool_registry.register(FileSystemTool)
-    tool_registry.register(WebSearchTool)
-    tool_registry.register(DocParserTool)
-    tool_registry.register(HttpCallerTool)
+    for cls in _BUILTIN_TOOLS:
+        tool_registry.register(cls)
+
+
+async def seed_tool_configs(db) -> None:
+    """Ensure every builtin tool has a row in tool_configs (idempotent)."""
+    from sqlalchemy import select
+    from app.models.tool_config import RegisteredTool
+    for cls in _BUILTIN_TOOLS:
+        instance = cls()
+        result = await db.execute(select(RegisteredTool).where(RegisteredTool.name == instance.name))
+        if result.scalar_one_or_none() is None:
+            db.add(RegisteredTool(name=instance.name, source="builtin"))
+    await db.commit()

@@ -20,6 +20,20 @@ class ToolRegistry:
     def get_all(self) -> list[BaseTool]:
         return list(self._tools.values())
 
+    async def is_enabled_for_org(self, name: str, org_id: str | None, db) -> bool:
+        """Check DB for per-tool enabled state. Returns True if no record exists."""
+        from sqlalchemy import select
+        from app.models.tool_config import RegisteredTool
+        result = await db.execute(select(RegisteredTool).where(RegisteredTool.name == name))
+        record = result.scalar_one_or_none()
+        if record is None:
+            return True  # No DB record = tool is allowed
+        if not record.enabled_globally:
+            return False
+        if record.allowed_orgs is not None and org_id not in record.allowed_orgs:
+            return False
+        return True
+
 
 # Module-level registry populated at startup
 tool_registry = ToolRegistry()

@@ -16,9 +16,11 @@ from app.routers.webhooks import router as webhooks_router
 from app.routers.tools_admin import router as tools_admin_router
 from app.routers.integrations import router as integrations_router
 from app.routers.voice import router as voice_router
+from app.routers.marketplace import router as marketplace_router
 from app.observability.metrics import metrics_router
 from app.tools.registry import tool_registry
 from app.tools.init_registry import register_all_tools, seed_tool_configs
+from app.services.marketplace_seed import seed_marketplace_plugins
 from app.database import AsyncSessionLocal
 
 configure_logging()
@@ -31,6 +33,7 @@ async def lifespan(app: FastAPI):
     register_all_tools()
     async with AsyncSessionLocal() as db:
         await seed_tool_configs(db)
+        await seed_marketplace_plugins(db)
 
     # Warn if fernet_key is missing (integrations feature requires it)
     if not settings.fernet_key:
@@ -82,6 +85,7 @@ app.include_router(webhooks_router, prefix="/api/v1")
 app.include_router(tools_admin_router, prefix="/api/v1")
 app.include_router(integrations_router, prefix="/api/v1")
 app.include_router(voice_router, prefix="/api/v1")
+app.include_router(marketplace_router, prefix="/api/v1")
 app.include_router(metrics_router)  # /metrics — no prefix, Prometheus standard
 
 

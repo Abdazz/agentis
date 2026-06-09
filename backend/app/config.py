@@ -104,6 +104,10 @@ class Settings(BaseSettings):
     # Webhook security
     fernet_key: str = ""  # Set in production: Fernet.generate_key().decode()
 
+    # ClamAV file scanning (Phase 3B)
+    clamav_socket: str = "/var/run/clamav/clamd.ctl"
+    clamav_enabled: bool = False
+
     @property
     def http_caller_safe_domain_set(self) -> set[str]:
         if not self.http_caller_safe_domains:

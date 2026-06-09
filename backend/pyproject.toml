@@ -39,6 +39,7 @@ dependencies = [
     "mcp>=1.0",
     "pyyaml>=6.0",
     "jsonref>=1.1",
+    "clamd>=1.0",
 ]
 
 [project.optional-dependencies]

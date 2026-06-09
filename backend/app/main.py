@@ -18,6 +18,7 @@ from app.routers.integrations import router as integrations_router
 from app.routers.voice import router as voice_router
 from app.routers.marketplace import router as marketplace_router
 from app.routers.config_admin import router as config_admin_router
+from app.routers.oidc_config import router as oidc_config_router
 from app.observability.metrics import metrics_router
 from app.tools.registry import tool_registry
 from app.tools.init_registry import register_all_tools, seed_tool_configs
@@ -88,6 +89,7 @@ app.include_router(integrations_router, prefix="/api/v1")
 app.include_router(voice_router, prefix="/api/v1")
 app.include_router(marketplace_router, prefix="/api/v1")
 app.include_router(config_admin_router, prefix="/api/v1")
+app.include_router(oidc_config_router, prefix="/api/v1")
 app.include_router(metrics_router)  # /metrics — no prefix, Prometheus standard
 
 

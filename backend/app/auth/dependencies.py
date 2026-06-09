@@ -79,6 +79,13 @@ async def require_admin(current_user: User = Depends(get_current_user)) -> User:
     return current_user
 
 
+async def require_operator(current_user: User = Depends(get_current_user)) -> User:
+    """Allow only the operator role (highest privilege — spec §3.2 RBAC)."""
+    if current_user.role != UserRole.operator:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Operator access required")
+    return current_user
+
+
 async def verify_token_string(token: str) -> User:
     """Verify a raw JWT string (for WebSocket query param auth)."""
     from app.database import AsyncSessionLocal

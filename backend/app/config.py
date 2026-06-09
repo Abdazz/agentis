@@ -109,6 +109,11 @@ class Settings(BaseSettings):
     clamav_socket: str = "/var/run/clamav/clamd.ctl"
     clamav_enabled: bool = False
 
+    # Voice services (Phase 4B)
+    whisper_model: str = "base"   # tiny, base, small, medium, large
+    whisper_device: str = "cpu"   # cpu or cuda
+    tts_voice: str = "fr-FR-DeniseNeural"
+
     @property
     def http_caller_safe_domain_set(self) -> set[str]:
         if not self.http_caller_safe_domains:

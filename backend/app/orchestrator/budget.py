@@ -1,4 +1,5 @@
 """Token budget enforcement (Feature ORCH-3). Checked before each LLM call."""
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 from sqlalchemy import select, func
@@ -41,11 +42,13 @@ async def check_budgets(
     # Per-org monthly budget check (BR-ORCH-20 tier 3)
     if org_id is not None and org_monthly_budget is not None:
         from app.models.task import Task, TaskStep
+        now = datetime.now(timezone.utc)
+        month_start = datetime(now.year, now.month, 1, tzinfo=timezone.utc)
         used_org = (await db.execute(
             select(func.coalesce(func.sum(TaskStep.tokens_used), 0))
             .join(Task, Task.id == TaskStep.task_id)
-            .join(User, User.id == Task.user_id)
-            .where(User.active_organization_id == org_id)
+            .where(Task.organization_id == org_id)
+            .where(Task.created_at >= month_start)
         )).scalar_one_or_none() or 0
         if used_org + estimated_next > org_monthly_budget:
             raise BudgetExceeded("org_monthly")

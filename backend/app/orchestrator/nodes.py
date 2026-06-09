@@ -99,6 +99,28 @@ async def think_node(state: AgentState, config: RunnableConfig) -> dict:
         await ctx.emitter.emit(TaskStepType.context_summarized, {"tokens_freed": tokens_freed})
 
     messages: list[BaseMessage] = [SystemMessage(content=sys), plan_msg] + current_msgs
+
+    # Check token budgets before invoking LLM (BR-ORCH-20/21)
+    from uuid import UUID as _UUID
+    from sqlalchemy import select as _select, func as _func
+    from app.database import AsyncSessionLocal
+    from app.models.task import TaskStep as _TaskStep
+    from app.orchestrator.budget import check_budgets
+    estimated = count_message_tokens(messages)
+    async with AsyncSessionLocal() as _db:
+        task_tokens_so_far = (await _db.execute(
+            _select(_func.coalesce(_func.sum(_TaskStep.tokens_used), 0))
+            .where(_TaskStep.task_id == _UUID(ctx.task_id))
+        )).scalar_one() or 0
+        await check_budgets(
+            _db,
+            user_id=_UUID(ctx.user_id),
+            task_tokens_so_far=task_tokens_so_far,
+            estimated_next=estimated,
+            org_id=_UUID(ctx.org_id) if ctx.org_id else None,
+            org_monthly_budget=ctx.org_monthly_budget,
+        )
+
     llm = ctx.llm.bind_tools(schemas) if schemas else ctx.llm
     resp = await llm.ainvoke(messages)
     tokens = count_message_tokens([resp])

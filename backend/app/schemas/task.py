@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
+import uuid
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -41,6 +42,8 @@ class TaskResponse(BaseModel):
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     stream_url: Optional[str] = None
+    parent_task_id: Optional[uuid.UUID] = None
+    agent_role: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

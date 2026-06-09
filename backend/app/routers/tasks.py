@@ -147,6 +147,27 @@ async def cancel_task(task_id: UUID, request: Request, user: User = Depends(get_
     return _to_response(task, request)
 
 
+@router.get("/{task_id}/subtasks", response_model=list[TaskResponse])
+async def list_subtasks(
+    task_id: UUID,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[TaskResponse]:
+    """Return child tasks for a supervisor task (Phase 4A)."""
+    from app.models.task import Task
+    parent = await db.get(Task, task_id)
+    if parent is None or parent.deleted_at is not None or parent.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail={"code": "not_found", "message": "Task not found"})
+    result = await db.execute(
+        select(Task).where(
+            Task.parent_task_id == task_id,
+            Task.deleted_at.is_(None),
+        ).order_by(Task.created_at)
+    )
+    return [_to_response(t, request) for t in result.scalars().all()]
+
+
 @router.get("/{task_id}/stream")
 async def stream_task(task_id: UUID, request: Request, user: User = Depends(get_current_user),
                       db: AsyncSession = Depends(get_db)):

@@ -42,6 +42,7 @@ class Settings(BaseSettings):
     # Tools
     tool_output_max_tokens: int = 8000
     code_executor_timeout_s: int = 120
+    mcp_timeout_s: int = 30
 
     # Search
     search_backend: str = "brave"          # brave|searxng|tavily

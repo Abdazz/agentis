@@ -36,6 +36,9 @@ dependencies = [
     "voyageai>=0.2",
     "minio>=7.2",
     "prometheus-client>=0.20",
+    "mcp>=1.0",
+    "pyyaml>=6.0",
+    "jsonref>=1.1",
 ]
 
 [project.optional-dependencies]

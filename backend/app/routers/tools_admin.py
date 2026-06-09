@@ -26,10 +26,8 @@ class PatchToolRequest(BaseModel):
     allowed_orgs: Optional[list] = None
 
 
-class MCPToolRequest(BaseModel):
-    name: str
-    mcp_url: str
-    enabled_globally: bool = True
+class RegisterMcpRequest(BaseModel):
+    server_url: str
 
 
 class OpenAPIToolRequest(BaseModel):
@@ -67,29 +65,46 @@ async def patch_tool(
     return tool
 
 
-@router.post("/mcp", response_model=ToolConfigResponse, status_code=status.HTTP_201_CREATED)
-async def register_mcp_tool(
-    body: MCPToolRequest,
+@router.post("/mcp", status_code=status.HTTP_201_CREATED)
+async def register_mcp_server(
+    body: RegisterMcpRequest,
     _: User = Depends(require_admin),
     db=Depends(get_db),
 ):
-    """Register a new MCP (Model Context Protocol) tool by URL."""
-    existing = await db.execute(select(RegisteredTool).where(RegisteredTool.name == body.name))
-    if existing.scalar_one_or_none() is not None:
+    """Auto-discover and register all tools exposed by an MCP server."""
+    from app.services.mcp_discovery import discover_mcp_tools
+    try:
+        tools = await discover_mcp_tools(body.server_url)
+    except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Tool '{body.name}' already registered",
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"MCP discovery failed: {e}",
         )
-    tool = RegisteredTool(
-        name=body.name,
-        source="mcp",
-        mcp_url=body.mcp_url,
-        enabled_globally=body.enabled_globally,
-    )
-    db.add(tool)
+
+    from app.tools.registry import tool_registry
+    registered: list[str] = []
+    for tool in tools:
+        # Register in the in-memory registry if not already present.
+        if tool_registry.get(tool.name) is None:
+            tool_registry._tools[tool.name] = tool
+
+        # Persist to DB if not already recorded.
+        result = await db.execute(
+            select(RegisteredTool).where(RegisteredTool.name == tool.name)
+        )
+        existing = result.scalar_one_or_none()
+        if existing is None:
+            db.add(
+                RegisteredTool(
+                    name=tool.name,
+                    source="mcp",
+                    mcp_url=body.server_url,
+                )
+            )
+            registered.append(tool.name)
+
     await db.commit()
-    await db.refresh(tool)
-    return tool
+    return {"registered": registered}
 
 
 @router.post("/openapi", response_model=ToolConfigResponse, status_code=status.HTTP_201_CREATED)

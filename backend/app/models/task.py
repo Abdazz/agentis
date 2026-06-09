@@ -35,6 +35,10 @@ class Task(TimestampMixin, Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
     organization_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("organizations.id"), nullable=True)
+    parent_task_id: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    agent_role: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     goal: Mapped[str] = mapped_column(String(10000), nullable=False)
     status: Mapped[TaskStatus] = mapped_column(
         Enum(TaskStatus, name="task_status"), nullable=False, default=TaskStatus.submitted
@@ -62,6 +66,7 @@ class Task(TimestampMixin, Base):
         Index("idx_tasks_status", "status", postgresql_where=text("deleted_at IS NULL")),
         Index("idx_tasks_active", "deleted_at", postgresql_where=text("deleted_at IS NULL")),
         Index("idx_tasks_org", "organization_id", "created_at"),
+        Index("idx_tasks_parent", "parent_task_id"),
     )
 
 

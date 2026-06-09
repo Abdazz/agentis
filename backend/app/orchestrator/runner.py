@@ -50,6 +50,29 @@ async def run_task(task_id_str: str, llm=None, skip_sandbox: bool = False) -> No
         max_iter = min(task.max_iterations, settings.max_iterations_cap)
         allowed_tools = task.allowed_tools
 
+        # Load user and their active org for LLM override + budget (BR-ADMIN-21, BR-ORCH-20)
+        from sqlalchemy import select as _select
+        from app.models.org import Organization
+        from app.models.user import User as _User
+        user_row = await db.get(_User, user_id)
+        org_llm_provider = None
+        org_llm_model = None
+        org_monthly_budget = None
+        org_id_for_budget = None
+        if user_row is not None and user_row.active_organization_id is not None:
+            result = await db.execute(
+                _select(Organization).where(
+                    Organization.id == user_row.active_organization_id,
+                    Organization.deleted_at.is_(None),
+                )
+            )
+            org = result.scalar_one_or_none()
+            if org is not None:
+                org_llm_provider = org.llm_provider
+                org_llm_model = org.llm_model
+                org_monthly_budget = org.token_budget_monthly
+                org_id_for_budget = org.id
+
     await _set_status(task_id, TaskStatus.planning, started_at=datetime.now(timezone.utc))
 
     try:
@@ -57,11 +80,13 @@ async def run_task(task_id_str: str, llm=None, skip_sandbox: bool = False) -> No
             session = await sandbox_manager.create_session(task_id_str)
             sandbox_endpoint = session.endpoint
 
-        llm = llm or build_llm()
+        llm = llm or build_llm(provider=org_llm_provider, model=org_llm_model)
         memory_block = await stm.build_context_block(str(user_id), max_tokens=500)
         run_ctx = RunContext(llm=llm, emitter=emitter, sandbox_endpoint=sandbox_endpoint,
                              user_id=str(user_id), task_id=task_id_str,
-                             allowed_tools=allowed_tools, memory_block=memory_block)
+                             allowed_tools=allowed_tools, memory_block=memory_block,
+                             org_id=str(org_id_for_budget) if org_id_for_budget else None,
+                             org_monthly_budget=org_monthly_budget)
 
         initial: AgentState = {
             "task_id": task_id_str, "user_id": str(user_id), "goal": goal,

@@ -29,6 +29,8 @@ class RunContext:
     task_id: str
     allowed_tools: Optional[list[str]]
     memory_block: str = ""
+    org_id: str | None = None
+    org_monthly_budget: int | None = None
 
 
 def _ctx(config: RunnableConfig) -> RunContext:

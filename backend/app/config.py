@@ -114,6 +114,9 @@ class Settings(BaseSettings):
     whisper_device: str = "cpu"   # cpu or cuda
     tts_voice: str = "fr-FR-DeniseNeural"
 
+    # OIDC SSO (Phase 4C)
+    oidc_secret_key: str = ""  # Fernet key — generate with Fernet.generate_key()
+
     @property
     def http_caller_safe_domain_set(self) -> set[str]:
         if not self.http_caller_safe_domains:

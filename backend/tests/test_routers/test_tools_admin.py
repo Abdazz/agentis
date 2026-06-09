@@ -1,0 +1,157 @@
+import pytest
+import uuid
+from httpx import AsyncClient
+
+
+async def _make_operator(db_session) -> "User":
+    from app.models.user import User, UserRole
+    from app.auth.password import hash_password
+    from datetime import datetime, timezone
+    user = User(
+        id=uuid.uuid4(),
+        email=f"op_{uuid.uuid4().hex[:6]}@test.com",
+        password_hash=hash_password("Pass1234!Secret"),
+        role=UserRole.operator,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+    )
+    db_session.add(user)
+    await db_session.commit()
+    return user
+
+
+async def _login(client: AsyncClient, email: str) -> str:
+    resp = await client.post("/api/v1/auth/login",
+                             json={"email": email, "password": "Pass1234!Secret"})
+    return resp.json()["access_token"]
+
+
+@pytest.mark.asyncio
+async def test_list_tools_requires_auth(client):
+    resp = await client.get("/api/v1/admin/tools")
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_list_tools_as_operator(client, db_session):
+    from app.models.tool_config import RegisteredTool
+    # Seed a tool record
+    db_session.add(RegisteredTool(name=f"browser_{uuid.uuid4().hex[:6]}", source="builtin"))
+    await db_session.commit()
+
+    op = await _make_operator(db_session)
+    token = await _login(client, op.email)
+    resp = await client.get("/api/v1/admin/tools",
+                            headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200
+    assert isinstance(resp.json(), list)
+
+
+@pytest.mark.asyncio
+async def test_patch_tool_disable(client, db_session):
+    from app.models.tool_config import RegisteredTool
+    tool_name = f"web_search_{uuid.uuid4().hex[:6]}"
+    db_session.add(RegisteredTool(name=tool_name, source="builtin"))
+    await db_session.commit()
+
+    op = await _make_operator(db_session)
+    token = await _login(client, op.email)
+    resp = await client.patch(
+        f"/api/v1/admin/tools/{tool_name}",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"enabled_globally": False},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["enabled_globally"] is False
+
+
+@pytest.mark.asyncio
+async def test_patch_tool_nonexistent_returns_404(client, db_session):
+    op = await _make_operator(db_session)
+    token = await _login(client, op.email)
+    resp = await client.patch(
+        "/api/v1/admin/tools/nonexistent_tool_xyz",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"enabled_globally": False},
+    )
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_patch_tool_requires_auth(client):
+    resp = await client.patch(
+        "/api/v1/admin/tools/some_tool",
+        json={"enabled_globally": False},
+    )
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_register_mcp_tool(client, db_session):
+    op = await _make_operator(db_session)
+    token = await _login(client, op.email)
+    tool_name = f"mcp_tool_{uuid.uuid4().hex[:6]}"
+    resp = await client.post(
+        "/api/v1/admin/tools/mcp",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"name": tool_name, "mcp_url": "http://mcp.example.com/sse"},
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["name"] == tool_name
+    assert data["source"] == "mcp"
+    assert data["mcp_url"] == "http://mcp.example.com/sse"
+    assert data["enabled_globally"] is True
+
+
+@pytest.mark.asyncio
+async def test_register_mcp_tool_duplicate_returns_409(client, db_session):
+    from app.models.tool_config import RegisteredTool
+    tool_name = f"mcp_dup_{uuid.uuid4().hex[:6]}"
+    db_session.add(RegisteredTool(name=tool_name, source="mcp", mcp_url="http://old.example.com"))
+    await db_session.commit()
+
+    op = await _make_operator(db_session)
+    token = await _login(client, op.email)
+    resp = await client.post(
+        "/api/v1/admin/tools/mcp",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"name": tool_name, "mcp_url": "http://new.example.com/sse"},
+    )
+    assert resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_register_openapi_tool(client, db_session):
+    op = await _make_operator(db_session)
+    token = await _login(client, op.email)
+    tool_name = f"openapi_tool_{uuid.uuid4().hex[:6]}"
+    resp = await client.post(
+        "/api/v1/admin/tools/openapi",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"name": tool_name, "openapi_spec_url": "http://api.example.com/openapi.json"},
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["name"] == tool_name
+    assert data["source"] == "openapi"
+    assert data["openapi_spec_url"] == "http://api.example.com/openapi.json"
+
+
+@pytest.mark.asyncio
+async def test_patch_tool_enable(client, db_session):
+    from app.models.tool_config import RegisteredTool
+    tool_name = f"disabled_tool_{uuid.uuid4().hex[:6]}"
+    tool = RegisteredTool(name=tool_name, source="builtin", enabled_globally=False)
+    db_session.add(tool)
+    await db_session.commit()
+
+    op = await _make_operator(db_session)
+    token = await _login(client, op.email)
+    resp = await client.patch(
+        f"/api/v1/admin/tools/{tool_name}",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"enabled_globally": True},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["enabled_globally"] is True

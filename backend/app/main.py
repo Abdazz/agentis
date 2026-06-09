@@ -13,6 +13,7 @@ from app.routers.ws import router as ws_router
 from app.routers.admin import router as admin_router
 from app.routers.organizations import router as orgs_router
 from app.routers.webhooks import router as webhooks_router
+from app.routers.tools_admin import router as tools_admin_router
 from app.observability.metrics import metrics_router
 from app.tools.registry import tool_registry
 from app.tools.init_registry import register_all_tools, seed_tool_configs
@@ -63,6 +64,7 @@ app.include_router(ws_router, prefix="/api/v1")
 app.include_router(admin_router, prefix="/api/v1")
 app.include_router(orgs_router, prefix="/api/v1")
 app.include_router(webhooks_router, prefix="/api/v1")
+app.include_router(tools_admin_router, prefix="/api/v1")
 app.include_router(metrics_router)  # /metrics — no prefix, Prometheus standard
 
 

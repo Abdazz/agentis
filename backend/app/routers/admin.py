@@ -1,12 +1,15 @@
 from datetime import datetime, timezone, timedelta
+from typing import Optional
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import require_admin
 from app.models.user import User, UserRole
 from app.models.task import Task
 from app.models.audit import AuditLog
+from app.models.org import Organization
 from app.database import get_db
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -120,3 +123,66 @@ async def list_audit_events(
         ],
         "total": total,
     }
+
+
+class PatchOrgRequest(BaseModel):
+    llm_provider: Optional[str] = None
+    llm_model: Optional[str] = None
+    allowed_tools: Optional[list[str]] = None
+    token_budget_monthly: Optional[int] = None
+    max_concurrent_tasks: Optional[int] = None
+
+
+class OrgConfigResponse(BaseModel):
+    id: str
+    name: str
+    slug: str
+    llm_provider: Optional[str] = None
+    llm_model: Optional[str] = None
+    allowed_tools: Optional[list[str]] = None
+    token_budget_monthly: Optional[int] = None
+    max_concurrent_tasks: int
+
+
+@router.patch("/organizations/{org_id}", response_model=OrgConfigResponse)
+async def patch_organization_config(
+    org_id: str,
+    body: PatchOrgRequest,
+    _: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Operator endpoint: configure per-org LLM override, tool restrictions, token budget."""
+    import uuid as uuid_lib
+    result = await db.execute(
+        select(Organization).where(
+            Organization.id == uuid_lib.UUID(org_id),
+            Organization.deleted_at.is_(None),
+        )
+    )
+    org = result.scalar_one_or_none()
+    if org is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
+
+    if body.llm_provider is not None:
+        org.llm_provider = body.llm_provider or None
+    if body.llm_model is not None:
+        org.llm_model = body.llm_model or None
+    if body.allowed_tools is not None:
+        org.allowed_tools = body.allowed_tools if body.allowed_tools else None
+    if body.token_budget_monthly is not None:
+        org.token_budget_monthly = body.token_budget_monthly if body.token_budget_monthly > 0 else None
+    if body.max_concurrent_tasks is not None:
+        org.max_concurrent_tasks = body.max_concurrent_tasks
+
+    await db.commit()
+    await db.refresh(org)
+    return OrgConfigResponse(
+        id=str(org.id),
+        name=org.name,
+        slug=org.slug,
+        llm_provider=org.llm_provider,
+        llm_model=org.llm_model,
+        allowed_tools=org.allowed_tools,
+        token_budget_monthly=org.token_budget_monthly,
+        max_concurrent_tasks=org.max_concurrent_tasks,
+    )

@@ -1,7 +1,8 @@
 import structlog
 import uuid as uuid_lib
+from cryptography.fernet import Fernet
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import AnyHttpUrl, BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,10 +21,10 @@ REDACTED = "***"
 
 
 class OidcConfigRequest(BaseModel):
-    provider: str
-    client_id: str
-    client_secret: str
-    discovery_url: str
+    provider: str = Field(..., min_length=1, max_length=50)
+    client_id: str = Field(..., min_length=1)
+    client_secret: str = Field(..., min_length=1)
+    discovery_url: AnyHttpUrl
     enabled: bool = False
 
 
@@ -38,15 +39,12 @@ class OidcConfigResponse(BaseModel):
 
 
 def _encrypt_secret(secret: str) -> str:
-    """Encrypt client_secret with Fernet. Falls back to plaintext in dev (with a warning)."""
-    key = settings.oidc_secret_key
+    key = settings.fernet_key
     if not key:
-        log.warning(
-            "oidc_secret_key_not_set",
-            detail="AGENTIS_OIDC_SECRET_KEY is not configured — client_secret stored as plaintext (dev mode only)",
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Encryption key not configured (AGENTIS_FERNET_KEY)",
         )
-        return secret
-    from cryptography.fernet import Fernet
     return Fernet(key.encode()).encrypt(secret.encode()).decode()
 
 
@@ -79,7 +77,7 @@ async def _get_org_or_404(org_id: str, db: AsyncSession) -> Organization:
     return org
 
 
-@router.post("/{org_id}/oidc", response_model=OidcConfigResponse, status_code=200)
+@router.post("/{org_id}/oidc", response_model=OidcConfigResponse, status_code=201)
 async def upsert_oidc_config(
     org_id: str,
     body: OidcConfigRequest,
@@ -92,17 +90,18 @@ async def upsert_oidc_config(
     encrypted_secret = _encrypt_secret(body.client_secret)
 
     result = await db.execute(
-        select(OidcConfig).where(OidcConfig.org_id == org.id)
+        select(OidcConfig).where(OidcConfig.org_id == org.id).with_for_update()
     )
     cfg = result.scalar_one_or_none()
 
+    discovery_url = str(body.discovery_url)
     if cfg is None:
         cfg = OidcConfig(
             org_id=org.id,
             provider=body.provider,
             client_id=body.client_id,
             client_secret=encrypted_secret,
-            discovery_url=body.discovery_url,
+            discovery_url=discovery_url,
             enabled=body.enabled,
         )
         db.add(cfg)
@@ -110,7 +109,7 @@ async def upsert_oidc_config(
         cfg.provider = body.provider
         cfg.client_id = body.client_id
         cfg.client_secret = encrypted_secret
-        cfg.discovery_url = body.discovery_url
+        cfg.discovery_url = discovery_url
         cfg.enabled = body.enabled
 
     await db.commit()

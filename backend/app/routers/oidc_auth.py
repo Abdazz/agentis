@@ -137,11 +137,11 @@ async def oidc_callback(
             detail={"code": "bad_request", "message": "Missing code or state parameter"},
         )
 
-    # Bind state to the browser session cookie to prevent Login CSRF
-    if oidc_state is not None and oidc_state != state:
+    # Require state cookie to prevent Login CSRF (RFC 6749 §10.12)
+    if not oidc_state or oidc_state != state:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail={"code": "state_mismatch", "message": "State parameter does not match session"},
+            detail={"code": "state_mismatch", "message": "State parameter does not match session cookie"},
         )
 
     # Retrieve PKCE data from Redis
@@ -232,6 +232,8 @@ async def oidc_callback(
             detail={"code": "missing_email", "message": "id_token does not contain email claim"},
         )
 
+    # Reject only when email_verified is explicitly False. Absent claim (None) is
+    # intentionally allowed: many enterprise IdPs omit this field.
     if claims.get("email_verified") is False:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -243,6 +245,13 @@ async def oidc_callback(
         select(User).where(func.lower(User.email) == email.lower())
     )
     user = result.scalar_one_or_none()
+
+    if user is not None and user.deleted_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "account_disabled", "message": "Account is disabled"},
+        )
+
     is_new = user is None
 
     if is_new:
@@ -265,10 +274,16 @@ async def oidc_callback(
     # Issue JWT
     access_token = create_access_token(str(user.id), user.role.value)
 
-    return RedirectResponse(
+    # Token delivered via URL query param per spec. Known trade-off: visible in
+    # server logs and browser history. The SPA reads it once on mount then clears
+    # the URL via history.replaceState. A cookie-based delivery would require
+    # frontend changes outside C2 scope.
+    redirect = RedirectResponse(
         url=f"{settings.base_url}/tasks?token={access_token}",
         status_code=302,
     )
+    redirect.delete_cookie("oidc_state")
+    return redirect
 
 
 # ---------------------------------------------------------------------------

@@ -37,6 +37,22 @@ async def create_task(body: TaskCreate, request: Request,
                       user: User = Depends(get_current_user),
                       db: AsyncSession = Depends(get_db)):
     from app.models.org import Organization
+    from app.models.task_template import TaskTemplate
+    from sqlalchemy import or_
+
+    # Resolve template_id (E1): load template and build effective goal
+    effective_goal = body.goal
+    if body.template_id is not None:
+        template = await db.get(TaskTemplate, body.template_id)
+        if template is None or (not template.is_public and template.created_by != user.id):
+            raise HTTPException(status_code=404, detail={
+                "code": "not_found",
+                "message": "Template not found",
+            })
+        if effective_goal:
+            effective_goal = template.goal_template + "\n\n" + effective_goal
+        else:
+            effective_goal = template.goal_template
 
     # Load user's active org (if any)
     org = None
@@ -78,7 +94,7 @@ async def create_task(body: TaskCreate, request: Request,
     requested = body.options.max_iterations or settings.default_max_iterations
     max_iterations = min(requested, settings.max_iterations_cap)
     task = await task_repo.create_task(
-        db, user_id=user.id, goal=body.goal, language=language,
+        db, user_id=user.id, goal=effective_goal, language=language,
         max_iterations=max_iterations, allowed_tools=requested_tools,
         notify_webhook=body.options.notify_webhook,
     )

@@ -36,7 +36,7 @@ def _make_id_token(email: str) -> str:
     import json as _json
 
     header = base64.urlsafe_b64encode(b'{"alg":"none","typ":"JWT"}').rstrip(b"=").decode()
-    payload_data = {"sub": "abc123", "email": email, "iss": "https://idp.example.com"}
+    payload_data = {"sub": "abc123", "email": email, "email_verified": True, "iss": "https://idp.example.com"}
     payload = base64.urlsafe_b64encode(_json.dumps(payload_data).encode()).rstrip(b"=").decode()
     return f"{header}.{payload}."
 
@@ -200,6 +200,7 @@ async def test_oidc_callback_expired_state_returns_404(client: AsyncClient, db_s
         resp = await client.get(
             "/api/v1/auth/oidc/callback?code=abc&state=deadbeef",
             follow_redirects=False,
+            cookies={"oidc_state": "deadbeef"},
         )
 
     assert resp.status_code == 404
@@ -242,6 +243,7 @@ async def test_oidc_callback_auto_provisions_new_user(client: AsyncClient, db_se
         resp = await client.get(
             "/api/v1/auth/oidc/callback?code=authcode&state=somestate",
             follow_redirects=False,
+            cookies={"oidc_state": "somestate"},
         )
 
     assert resp.status_code == 302, resp.text
@@ -308,6 +310,7 @@ async def test_oidc_callback_reuses_existing_user(client: AsyncClient, db_sessio
         resp = await client.get(
             "/api/v1/auth/oidc/callback?code=authcode&state=somestate",
             follow_redirects=False,
+            cookies={"oidc_state": "somestate"},
         )
 
     assert resp.status_code == 302

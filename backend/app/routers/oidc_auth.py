@@ -20,7 +20,7 @@ import jwt as pyjwt
 import redis.asyncio as aioredis
 import structlog
 from cryptography.fernet import Fernet
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -116,9 +116,11 @@ async def _get_oidc_config(org_id, db: AsyncSession) -> OidcConfig:
 
 @router.get("/auth/oidc/callback")
 async def oidc_callback(
+    request: Request,
     code: str | None = None,
     state: str | None = None,
     error: str | None = None,
+    oidc_state: str | None = Cookie(default=None),
     db: AsyncSession = Depends(get_db),
 ):
     """Handle OIDC callback: exchange code, provision user, redirect with JWT."""
@@ -133,6 +135,13 @@ async def oidc_callback(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={"code": "bad_request", "message": "Missing code or state parameter"},
+        )
+
+    # Bind state to the browser session cookie to prevent Login CSRF
+    if oidc_state is not None and oidc_state != state:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "state_mismatch", "message": "State parameter does not match session"},
         )
 
     # Retrieve PKCE data from Redis
@@ -223,6 +232,12 @@ async def oidc_callback(
             detail={"code": "missing_email", "message": "id_token does not contain email claim"},
         )
 
+    if claims.get("email_verified") is False:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "email_not_verified", "message": "IdP email address is not verified"},
+        )
+
     # Auto-provision: look up or create user  (BR-AUTH-31/32)
     result = await db.execute(
         select(User).where(func.lower(User.email) == email.lower())
@@ -306,7 +321,17 @@ async def oidc_redirect(
         "code_challenge_method": "S256",
     }
 
-    return RedirectResponse(
+    response = RedirectResponse(
         url=f"{authorization_endpoint}?{urlencode(params)}",
         status_code=302,
     )
+    # Bind state to browser session to prevent Login CSRF (RFC 6749 §10.12)
+    response.set_cookie(
+        "oidc_state",
+        state,
+        max_age=_PKCE_TTL,
+        httponly=True,
+        samesite="lax",
+        secure=settings.environment != "development",
+    )
+    return response

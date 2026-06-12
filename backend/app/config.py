@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     default_language: str = "fr"
     log_level: str = "INFO"
     environment: str = "development"
+    base_url: str = "http://localhost:8000"
 
     # Sandbox
     sandbox_image: str = "agentis-sandbox:latest"

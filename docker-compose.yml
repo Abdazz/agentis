@@ -172,6 +172,9 @@ services:
     ports:
       - "3100:3100"
     command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./infra/loki-config.yaml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
     profiles: ["observability"]
 
   grafana:
@@ -193,6 +196,7 @@ volumes:
   qdrant_data:
   minio_data:
   grafana_data:
+  loki_data:
 
 networks:
   agentis_default:

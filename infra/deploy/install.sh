@@ -334,7 +334,7 @@ if grep -qE "CHANGE_ME|REDIS_PASS_HERE" "${ENV_FILE}"; then
     read -r _ || true
 fi
 
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+docker compose --compatibility -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 log_success ""
 log_success "============================================================"

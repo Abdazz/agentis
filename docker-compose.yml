@@ -1,7 +1,7 @@
 services:
   api:
     build: ./backend
-    ports: ["8000:8000"]
+    ports: ["8001:8000"]
     environment:
       - AGENTIS_DATABASE_URL=postgresql+asyncpg://agentis:agentis@pgbouncer:5432/agentis
       - AGENTIS_POSTGRES_DIRECT_URL=postgresql+asyncpg://agentis:agentis@postgres:5432/agentis
@@ -150,10 +150,13 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8001
     ports:
-      - "3000:3000"
+      - "3010:3000"
     environment:
-      NEXT_PUBLIC_API_URL: http://api:8000
+      NEXT_PUBLIC_API_URL: http://localhost:8001
+      AGENTIS_INTERNAL_API_URL: http://api:8000
       NEXT_PUBLIC_DEFAULT_LOCALE: fr
     depends_on:
       - api

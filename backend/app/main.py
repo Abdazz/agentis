@@ -3,6 +3,7 @@ import structlog
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.exceptions import HTTPException, RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.config import settings
 from app.database import init_db
@@ -63,6 +64,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://localhost:3010"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 @app.middleware("http")
 async def request_logging_middleware(request: Request, call_next):
@@ -118,9 +127,17 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    details = [
+        {
+            "field": ".".join(str(loc) for loc in e.get("loc", [])[1:]),
+            "message": e.get("msg", "").replace("Value error, ", ""),
+        }
+        for e in exc.errors()
+    ]
+    first_msg = details[0]["message"] if details else "Validation failed"
     return JSONResponse(
         status_code=422,
-        content={"error": {"code": "validation_error", "message": str(exc.errors())}},
+        content={"error": {"code": "validation_error", "message": first_msg, "details": details}},
     )
 
 

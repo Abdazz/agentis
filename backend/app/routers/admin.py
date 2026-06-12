@@ -186,3 +186,61 @@ async def patch_organization_config(
         token_budget_monthly=org.token_budget_monthly,
         max_concurrent_tasks=org.max_concurrent_tasks,
     )
+
+
+@router.get("/organizations")
+async def list_organizations(
+    limit: int = Query(50, le=200),
+    offset: int = Query(0, ge=0),
+    _: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models.org import OrganizationMembership
+
+    total = await db.scalar(
+        select(func.count(Organization.id)).where(Organization.deleted_at.is_(None))
+    ) or 0
+
+    result = await db.execute(
+        select(
+            Organization,
+            func.count(OrganizationMembership.id).label("member_count")
+        )
+        .outerjoin(OrganizationMembership, OrganizationMembership.organization_id == Organization.id)
+        .where(Organization.deleted_at.is_(None))
+        .group_by(Organization.id)
+        .order_by(Organization.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+    )
+    rows = result.all()
+    return {
+        "items": [
+            {
+                "id": str(r.Organization.id),
+                "name": r.Organization.name,
+                "slug": r.Organization.slug,
+                "member_count": r.member_count,
+                "token_budget_monthly": r.Organization.token_budget_monthly,
+                "created_at": r.Organization.created_at.isoformat(),
+            }
+            for r in rows
+        ],
+        "total": total,
+    }
+
+
+@router.delete("/organizations/{org_id}", status_code=204)
+async def delete_organization(
+    org_id: str,
+    _: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    from datetime import datetime, timezone
+    from uuid import UUID
+
+    org = await db.get(Organization, UUID(org_id))
+    if not org or org.deleted_at is not None:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    org.deleted_at = datetime.now(timezone.utc)
+    await db.commit()

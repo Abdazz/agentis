@@ -19,7 +19,7 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 AGENTIS_HOME="${AGENTIS_HOME:-/opt/agentis}"
 APP_DIR="${APP_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
-COMPOSE_FILES="-f docker-compose.yml -f docker-compose.prod.yml"
+COMPOSE_FILES="--compatibility -f docker-compose.yml -f docker-compose.prod.yml"
 SERVICES_TO_RESTART="api worker"
 
 # ---------------------------------------------------------------------------

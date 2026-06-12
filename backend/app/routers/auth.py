@@ -7,6 +7,8 @@ from fastapi import APIRouter, Depends, HTTPException, Response, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, update
 from app.database import get_db
+from app.models.oidc import OidcConfig
+from app.models.org import OrganizationMembership
 from app.models.user import User, RefreshToken, ApiKey
 from app.schemas.auth import (
     RegisterRequest, LoginRequest,
@@ -149,6 +151,24 @@ async def login(
             status_code=401,
             detail={"code": "invalid_credentials", "message": "Invalid email or password"},
         )
+
+    # BR-AUTH-31: if user belongs to an OIDC-enabled org, block password login
+    if user:
+        oidc_org_result = await db.execute(
+            select(OidcConfig)
+            .join(OrganizationMembership, OrganizationMembership.organization_id == OidcConfig.org_id)
+            .where(
+                OrganizationMembership.user_id == user.id,
+                OidcConfig.enabled.is_(True),
+            )
+            .limit(1)
+        )
+        if oidc_org_result.scalar_one_or_none() is not None:
+            raise HTTPException(
+                status_code=403,
+                detail={"code": "oidc_required", "message": "Password login not allowed; use SSO"},
+            )
+
     if user.deleted_at:
         raise HTTPException(
             status_code=401,

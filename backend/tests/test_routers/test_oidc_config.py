@@ -93,7 +93,7 @@ async def _create_org(client: AsyncClient, user_token: str) -> str:
 async def test_post_oidc_creates_config_and_redacts_secret(client: AsyncClient, db_session, monkeypatch):
     """POST creates OIDC config and returns client_secret as '***'."""
     import app.config as app_config
-    monkeypatch.setattr(app_config.settings, "oidc_secret_key", TEST_OIDC_KEY)
+    monkeypatch.setattr(app_config.settings, "fernet_key", TEST_OIDC_KEY)
 
     _, user_token = await _make_user_and_token(client)
     op_token = await _make_operator_token(client, db_session)
@@ -104,7 +104,7 @@ async def test_post_oidc_creates_config_and_redacts_secret(client: AsyncClient, 
         json=OIDC_BODY,
         headers={"Authorization": f"Bearer {op_token}"},
     )
-    assert resp.status_code == 200, resp.text
+    assert resp.status_code == 201, resp.text
     data = resp.json()
     assert data["provider"] == "google"
     assert data["client_id"] == "my-client-id"
@@ -119,17 +119,18 @@ async def test_post_oidc_creates_config_and_redacts_secret(client: AsyncClient, 
 async def test_post_oidc_updates_existing_config(client: AsyncClient, db_session, monkeypatch):
     """POST is an upsert — calling it twice updates the existing row."""
     import app.config as app_config
-    monkeypatch.setattr(app_config.settings, "oidc_secret_key", TEST_OIDC_KEY)
+    monkeypatch.setattr(app_config.settings, "fernet_key", TEST_OIDC_KEY)
 
     _, user_token = await _make_user_and_token(client)
     op_token = await _make_operator_token(client, db_session)
     org_id = await _create_org(client, user_token)
 
-    await client.post(
+    r1 = await client.post(
         f"/api/v1/admin/organizations/{org_id}/oidc",
         json=OIDC_BODY,
         headers={"Authorization": f"Bearer {op_token}"},
     )
+    assert r1.status_code == 201
 
     updated_body = {**OIDC_BODY, "provider": "azure", "enabled": False}
     resp2 = await client.post(
@@ -137,7 +138,7 @@ async def test_post_oidc_updates_existing_config(client: AsyncClient, db_session
         json=updated_body,
         headers={"Authorization": f"Bearer {op_token}"},
     )
-    assert resp2.status_code == 200, resp2.text
+    assert resp2.status_code == 201, resp2.text
     data = resp2.json()
     assert data["provider"] == "azure"
     assert data["enabled"] is False
@@ -148,17 +149,18 @@ async def test_post_oidc_updates_existing_config(client: AsyncClient, db_session
 async def test_get_oidc_returns_config_with_redacted_secret(client: AsyncClient, db_session, monkeypatch):
     """GET returns OIDC config with client_secret always '***'."""
     import app.config as app_config
-    monkeypatch.setattr(app_config.settings, "oidc_secret_key", TEST_OIDC_KEY)
+    monkeypatch.setattr(app_config.settings, "fernet_key", TEST_OIDC_KEY)
 
     _, user_token = await _make_user_and_token(client)
     op_token = await _make_operator_token(client, db_session)
     org_id = await _create_org(client, user_token)
 
-    await client.post(
+    r1 = await client.post(
         f"/api/v1/admin/organizations/{org_id}/oidc",
         json=OIDC_BODY,
         headers={"Authorization": f"Bearer {op_token}"},
     )
+    assert r1.status_code == 201
 
     resp = await client.get(
         f"/api/v1/admin/organizations/{org_id}/oidc",
@@ -202,7 +204,7 @@ async def test_post_oidc_requires_operator_unauthenticated(client: AsyncClient, 
 async def test_post_oidc_requires_operator_not_admin(client: AsyncClient, db_session, monkeypatch):
     """POST /oidc returns 403 for admin role (not operator)."""
     import app.config as app_config
-    monkeypatch.setattr(app_config.settings, "oidc_secret_key", TEST_OIDC_KEY)
+    monkeypatch.setattr(app_config.settings, "fernet_key", TEST_OIDC_KEY)
 
     _, user_token = await _make_user_and_token(client)
     admin_token = await _make_admin_token(client, db_session)
@@ -233,7 +235,7 @@ async def test_get_oidc_requires_operator_not_user(client: AsyncClient, db_sessi
 async def test_post_oidc_org_not_found(client: AsyncClient, db_session, monkeypatch):
     """POST returns 404 for a non-existent org_id."""
     import app.config as app_config
-    monkeypatch.setattr(app_config.settings, "oidc_secret_key", TEST_OIDC_KEY)
+    monkeypatch.setattr(app_config.settings, "fernet_key", TEST_OIDC_KEY)
 
     op_token = await _make_operator_token(client, db_session)
     fake_org_id = str(uuid.uuid4())
@@ -247,10 +249,10 @@ async def test_post_oidc_org_not_found(client: AsyncClient, db_session, monkeypa
 
 
 @pytest.mark.asyncio
-async def test_post_oidc_dev_mode_no_key(client: AsyncClient, db_session, monkeypatch):
-    """POST works in dev mode (empty oidc_secret_key) — stores plaintext with warning."""
+async def test_post_oidc_no_fernet_key_returns_503(client: AsyncClient, db_session, monkeypatch):
+    """POST returns 503 when AGENTIS_FERNET_KEY is not configured."""
     import app.config as app_config
-    monkeypatch.setattr(app_config.settings, "oidc_secret_key", "")
+    monkeypatch.setattr(app_config.settings, "fernet_key", "")
 
     _, user_token = await _make_user_and_token(client)
     op_token = await _make_operator_token(client, db_session)
@@ -261,6 +263,5 @@ async def test_post_oidc_dev_mode_no_key(client: AsyncClient, db_session, monkey
         json=OIDC_BODY,
         headers={"Authorization": f"Bearer {op_token}"},
     )
-    assert resp.status_code == 200
-    # Secret is still redacted in the response
-    assert resp.json()["client_secret"] == "***"
+    assert resp.status_code == 503
+    assert "AGENTIS_FERNET_KEY" in resp.json()["error"]["message"]

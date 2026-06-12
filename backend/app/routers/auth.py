@@ -35,12 +35,13 @@ def _make_refresh_token() -> tuple[str, str]:
 
 
 def _set_refresh_cookie(response: Response, raw_token: str) -> None:
+    is_dev = settings.environment == "development"
     response.set_cookie(
         key=REFRESH_COOKIE,
         value=raw_token,
         httponly=True,
-        samesite="strict",
-        secure=settings.environment != "development",
+        samesite="lax" if is_dev else "strict",
+        secure=not is_dev,
         max_age=REFRESH_TTL,
         path="/api/v1/auth",
     )

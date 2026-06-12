@@ -6,6 +6,7 @@ services:
     environment:
       - AGENTIS_ENVIRONMENT=development
       - AGENTIS_LOG_LEVEL=DEBUG
+      - AGENTIS_FERNET_KEY=H0DR02-75k-X-ySH9PRz6UdTny3I0FJWOqjHvPAsW4s=
   postgres:
     ports: ["5436:5432"]
   redis:
@@ -15,7 +16,7 @@ services:
     volumes:
       - ./backend:/app
       - /var/run/docker.sock:/var/run/docker.sock
-    command: watchmedo auto-restart --directory=/app/app --pattern="*.py" --recursive -- celery -A app.worker.celery_app worker --loglevel=info --concurrency=2
+    command: celery -A app.worker.celery_app worker --loglevel=info --concurrency=2
     environment:
       AGENTIS_POSTGRES_DIRECT_URL: postgresql+asyncpg://agentis:agentis@postgres:5432/agentis
 

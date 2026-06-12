@@ -1,0 +1,168 @@
+{
+  "nav": {
+    "title": "Agentis",
+    "tasks": "Tâches",
+    "marketplace": "Marketplace",
+    "settings": "Paramètres",
+    "logout": "Déconnexion",
+    "login": "Connexion",
+    "register": "Inscription"
+  },
+  "home": {
+    "title": "Que souhaitez-vous accomplir ?",
+    "subtitle": "Décrivez votre objectif, l'agent s'en occupe.",
+    "placeholder": "Recherche les concurrents de notre produit et synthétise les résultats…",
+    "submit": "Lancer",
+    "attach": "Joindre un fichier",
+    "recent": "Récents",
+    "recordStart": "Démarrer l'enregistrement",
+    "recordStop": "Arrêter l'enregistrement",
+    "transcribing": "Transcription…",
+    "micError": "Erreur microphone",
+    "useTemplate": "Utiliser un modèle",
+    "templateModal": {
+      "title": "Choisir un modèle",
+      "search": "Rechercher un modèle…",
+      "empty": "Aucun modèle trouvé.",
+      "general": "Général",
+      "loading": "Chargement des modèles…",
+      "error": "Impossible de charger les modèles."
+    }
+  },
+  "tasks": {
+    "title": "Tâches",
+    "empty": "Aucune tâche pour l'instant.",
+    "status": {
+      "pending": "En attente",
+      "running": "En cours",
+      "completed": "Terminé",
+      "failed": "Échoué",
+      "cancelled": "Annulé",
+      "waiting_for_input": "En attente d'entrée",
+      "unknown": "Inconnu"
+    },
+    "cancel": "Annuler",
+    "cancelConfirm": "Annuler cette tâche ?",
+    "confidence": "Confiance",
+    "agentTeam": "Équipe d'agents",
+    "subtaskGoal": "Objectif",
+    "viewSubtask": "Voir"
+  },
+  "events": {
+    "plan": "PLAN",
+    "think": "THINK",
+    "tool": "TOOL",
+    "result": "RESULT",
+    "summary": "SUMMARY",
+    "done": "TERMINÉ",
+    "error": "ERREUR"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "language": "Langue",
+    "theme": "Thème",
+    "themeLight": "Clair",
+    "themeDarkPro": "Sombre Pro",
+    "themeDarkAccent": "Sombre Orange",
+    "apiKeys": "Clés API",
+    "apiKeysNew": "Créer une clé",
+    "apiKeysNewLabel": "Nom de la clé",
+    "apiKeysRevoke": "Révoquer",
+    "usage": "Utilisation des tokens",
+    "usageThisMonth": "Ce mois-ci",
+    "save": "Enregistrer"
+  },
+  "auth": {
+    "loginTitle": "Connexion",
+    "registerTitle": "Créer un compte",
+    "email": "Email",
+    "password": "Mot de passe",
+    "name": "Nom",
+    "loginSubmit": "Se connecter",
+    "registerSubmit": "Créer le compte",
+    "register": "S'inscrire",
+    "noAccount": "Pas encore de compte ?",
+    "hasAccount": "Déjà un compte ?",
+    "errors": {
+      "invalid_credentials": "Email ou mot de passe incorrect.",
+      "email_taken": "Cet email est déjà utilisé.",
+      "validation_error": "Les données saisies sont invalides.",
+      "generic": "Une erreur est survenue. Veuillez réessayer."
+    }
+  },
+  "login": {
+    "ssoButton": "Connexion SSO",
+    "ssoHint": "Votre organisation utilise l'authentification unique"
+  },
+  "errors": {
+    "notFound": "Page introuvable.",
+    "unauthorized": "Vous devez être connecté."
+  },
+  "marketplace": {
+    "title": "Marketplace",
+    "subtitle": "Découvrez et installez des plugins communautaires",
+    "tabAvailable": "Disponibles",
+    "tabInstalled": "Installés",
+    "install": "Installer",
+    "installing": "Installation…",
+    "installed": "Installé",
+    "by": "par",
+    "empty": "Aucun plugin trouvé.",
+    "installError": "Échec de l'installation.",
+    "loading": "Chargement…"
+  },
+  "admin": {
+    "nav": {
+      "dashboard": "Tableau de bord",
+      "users": "Utilisateurs",
+      "audit": "Journal d'audit",
+      "tools": "Outils",
+      "orgs": "Organisations"
+    },
+    "tools": {
+      "title": "Gestion des outils",
+      "subtitle": "Activer ou désactiver les outils globalement",
+      "name": "Nom",
+      "source": "Source",
+      "status": "Statut",
+      "restrictions": "Restrictions org.",
+      "enable": "Activer",
+      "disable": "Désactiver",
+      "enabled": "Actif",
+      "disabled": "Désactivé",
+      "noRestrictions": "Aucune",
+      "actions": "Actions",
+      "empty": "Aucun outil enregistré."
+    },
+    "config": {
+      "title": "Configuration LLM",
+      "subtitle": "Configurer le modèle de langage global",
+      "provider": "Fournisseur",
+      "model": "Modèle",
+      "apiKey": "Clé API",
+      "apiKeyPlaceholder": "Laisser vide pour conserver l'existant",
+      "baseUrl": "URL de base",
+      "baseUrlHint": "Requis pour Ollama / auto-hébergé",
+      "save": "Enregistrer",
+      "saved": "Configuration sauvegardée.",
+      "navLabel": "Config"
+    },
+    "orgs": {
+      "title": "Organisations",
+      "subtitle": "Gérer les organisations locataires",
+      "nameLabel": "Nom",
+      "namePlaceholder": "Acme Corp",
+      "slugLabel": "Identifiant",
+      "slugPlaceholder": "acme-corp",
+      "create": "Créer",
+      "name": "Nom",
+      "slug": "Identifiant",
+      "members": "Membres",
+      "tokenBudget": "Budget tokens / mois",
+      "actions": "Actions",
+      "delete": "Supprimer",
+      "empty": "Aucune organisation.",
+      "noLimit": "Sans limite"
+    }
+  }
+}

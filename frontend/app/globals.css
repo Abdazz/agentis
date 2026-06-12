@@ -1,0 +1,150 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ── Tailwind utility class → CSS variable mappings ── */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-fg);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-fg);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-fg);
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-fg);
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+  --font-heading: var(--font-sans);
+  --font-sans: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* ── Light Clean (default) ── */
+:root,
+[data-theme='light'] {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --primary: #2563eb;
+  --primary-fg: #ffffff;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-fg: #0f172a;
+  --secondary-foreground: #0f172a;
+  --muted: #64748b;
+  --muted-fg: #64748b;
+  --muted-foreground: #64748b;
+  --accent: #f1f5f9;
+  --accent-fg: #0f172a;
+  --accent-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --ring: #2563eb;
+  --success: #16a34a;
+  --destructive: #dc2626;
+  --radius: 0.5rem;
+}
+
+/* ── Dark Professional (indigo) ── */
+[data-theme='dark-pro'] {
+  --background: #0f1117;
+  --foreground: #e2e8f0;
+  --card: #1e2130;
+  --card-foreground: #e2e8f0;
+  --border: #2d3246;
+  --input: #2d3246;
+  --primary: #6366f1;
+  --primary-fg: #ffffff;
+  --primary-foreground: #ffffff;
+  --secondary: #252a3d;
+  --secondary-fg: #e2e8f0;
+  --secondary-foreground: #e2e8f0;
+  --muted: #94a3b8;
+  --muted-fg: #94a3b8;
+  --muted-foreground: #94a3b8;
+  --accent: #252a3d;
+  --accent-fg: #e2e8f0;
+  --accent-foreground: #e2e8f0;
+  --popover: #1e2130;
+  --popover-foreground: #e2e8f0;
+  --ring: #6366f1;
+  --success: #22c55e;
+  --destructive: #f87171;
+  --radius: 0.5rem;
+}
+
+/* ── Dark Accent Orange ── */
+[data-theme='dark-accent'] {
+  --background: #09090b;
+  --foreground: #fafafa;
+  --card: #18181b;
+  --card-foreground: #fafafa;
+  --border: #27272a;
+  --input: #27272a;
+  --primary: #f97316;
+  --primary-fg: #ffffff;
+  --primary-foreground: #ffffff;
+  --secondary: #27272a;
+  --secondary-fg: #fafafa;
+  --secondary-foreground: #fafafa;
+  --muted: #71717a;
+  --muted-fg: #71717a;
+  --muted-foreground: #71717a;
+  --accent: #27272a;
+  --accent-fg: #fafafa;
+  --accent-foreground: #fafafa;
+  --popover: #18181b;
+  --popover-foreground: #fafafa;
+  --ring: #f97316;
+  --success: #22c55e;
+  --destructive: #f87171;
+  --radius: 0.5rem;
+}
+
+/* ── Base styles ── */
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}

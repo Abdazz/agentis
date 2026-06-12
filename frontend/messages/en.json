@@ -1,0 +1,168 @@
+{
+  "nav": {
+    "title": "Agentis",
+    "tasks": "Tasks",
+    "marketplace": "Marketplace",
+    "settings": "Settings",
+    "logout": "Log out",
+    "login": "Log in",
+    "register": "Sign up"
+  },
+  "home": {
+    "title": "What would you like to accomplish?",
+    "subtitle": "Describe your goal, the agent handles the rest.",
+    "placeholder": "Research our product's competitors and summarize the findings…",
+    "submit": "Run",
+    "attach": "Attach file",
+    "recent": "Recent",
+    "recordStart": "Start recording",
+    "recordStop": "Stop recording",
+    "transcribing": "Transcribing…",
+    "micError": "Microphone error",
+    "useTemplate": "Use a template",
+    "templateModal": {
+      "title": "Choose a template",
+      "search": "Search templates…",
+      "empty": "No templates found.",
+      "general": "General",
+      "loading": "Loading templates…",
+      "error": "Failed to load templates."
+    }
+  },
+  "tasks": {
+    "title": "Tasks",
+    "empty": "No tasks yet.",
+    "status": {
+      "pending": "Pending",
+      "running": "Running",
+      "completed": "Completed",
+      "failed": "Failed",
+      "cancelled": "Cancelled",
+      "waiting_for_input": "Waiting for input",
+      "unknown": "Unknown"
+    },
+    "cancel": "Cancel",
+    "cancelConfirm": "Cancel this task?",
+    "confidence": "Confidence",
+    "agentTeam": "Agent Team",
+    "subtaskGoal": "Goal",
+    "viewSubtask": "View"
+  },
+  "events": {
+    "plan": "PLAN",
+    "think": "THINK",
+    "tool": "TOOL",
+    "result": "RESULT",
+    "summary": "SUMMARY",
+    "done": "DONE",
+    "error": "ERROR"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "theme": "Theme",
+    "themeLight": "Light",
+    "themeDarkPro": "Dark Pro",
+    "themeDarkAccent": "Dark Orange",
+    "apiKeys": "API Keys",
+    "apiKeysNew": "Create key",
+    "apiKeysNewLabel": "Key name",
+    "apiKeysRevoke": "Revoke",
+    "usage": "Token usage",
+    "usageThisMonth": "This month",
+    "save": "Save"
+  },
+  "auth": {
+    "loginTitle": "Log in",
+    "registerTitle": "Create an account",
+    "email": "Email",
+    "password": "Password",
+    "name": "Name",
+    "loginSubmit": "Log in",
+    "registerSubmit": "Create account",
+    "register": "Sign up",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "errors": {
+      "invalid_credentials": "Invalid email or password.",
+      "email_taken": "This email is already in use.",
+      "validation_error": "The provided data is invalid.",
+      "generic": "Something went wrong. Please try again."
+    }
+  },
+  "login": {
+    "ssoButton": "Login with SSO",
+    "ssoHint": "Your organization uses Single Sign-On"
+  },
+  "errors": {
+    "notFound": "Page not found.",
+    "unauthorized": "You must be logged in."
+  },
+  "marketplace": {
+    "title": "Marketplace",
+    "subtitle": "Discover and install community plugins",
+    "tabAvailable": "Available",
+    "tabInstalled": "Installed",
+    "install": "Install",
+    "installing": "Installing…",
+    "installed": "Installed",
+    "by": "by",
+    "empty": "No plugins found.",
+    "installError": "Installation failed.",
+    "loading": "Loading…"
+  },
+  "admin": {
+    "nav": {
+      "dashboard": "Dashboard",
+      "users": "Users",
+      "audit": "Audit Log",
+      "tools": "Tools",
+      "orgs": "Orgs"
+    },
+    "tools": {
+      "title": "Tool Management",
+      "subtitle": "Enable or disable tools globally",
+      "name": "Name",
+      "source": "Source",
+      "status": "Status",
+      "restrictions": "Org Restrictions",
+      "enable": "Enable",
+      "disable": "Disable",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "noRestrictions": "None",
+      "actions": "Actions",
+      "empty": "No tools registered."
+    },
+    "config": {
+      "title": "LLM Configuration",
+      "subtitle": "Configure the global language model settings",
+      "provider": "Provider",
+      "model": "Model",
+      "apiKey": "API Key",
+      "apiKeyPlaceholder": "Leave blank to keep existing",
+      "baseUrl": "Base URL",
+      "baseUrlHint": "Required for Ollama / self-hosted",
+      "save": "Save",
+      "saved": "Configuration saved.",
+      "navLabel": "Config"
+    },
+    "orgs": {
+      "title": "Organizations",
+      "subtitle": "Manage tenant organizations",
+      "nameLabel": "Name",
+      "namePlaceholder": "Acme Corp",
+      "slugLabel": "Slug",
+      "slugPlaceholder": "acme-corp",
+      "create": "Create",
+      "name": "Name",
+      "slug": "Slug",
+      "members": "Members",
+      "tokenBudget": "Token Budget / Month",
+      "actions": "Actions",
+      "delete": "Delete",
+      "empty": "No organizations yet.",
+      "noLimit": "No limit"
+    }
+  }
+}

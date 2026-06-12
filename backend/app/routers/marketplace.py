@@ -31,6 +31,21 @@ class PluginResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+def _plugin_to_response(p: MarketplacePlugin) -> PluginResponse:
+    return PluginResponse(
+        id=str(p.id),
+        name=p.name,
+        slug=p.slug,
+        description=p.description,
+        source_type=p.source_type,
+        url=p.url,
+        version=p.version,
+        author=p.author,
+        installed=p.installed,
+        registered_tool_name=p.registered_tool_name,
+    )
+
+
 @router.get("/plugins", response_model=list[PluginResponse])
 async def list_plugins(
     installed: Optional[bool] = Query(None, description="Filter by installed status"),
@@ -41,7 +56,7 @@ async def list_plugins(
     if installed is not None:
         stmt = stmt.where(MarketplacePlugin.installed == installed)
     result = await db.execute(stmt)
-    return list(result.scalars().all())
+    return [_plugin_to_response(p) for p in result.scalars().all()]
 
 
 @router.post("/plugins/{slug}/install", response_model=PluginResponse)
@@ -87,4 +102,4 @@ async def install_plugin(
         plugin.registered_tool_name = tools[0].name
     await db.commit()
     await db.refresh(plugin)
-    return plugin
+    return _plugin_to_response(plugin)

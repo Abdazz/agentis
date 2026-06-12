@@ -303,6 +303,13 @@ async def create_api_key(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # BR-AUTH-32: OIDC-provisioned users cannot create API keys until admin confirms
+    if current_user.oidc_pending_confirmation:
+        raise HTTPException(
+            status_code=403,
+            detail={"code": "oidc_pending_confirmation", "message": "Account pending admin confirmation; API key creation is not allowed"},
+        )
+
     count_result = await db.execute(
         select(func.count()).select_from(ApiKey).where(
             ApiKey.user_id == current_user.id,

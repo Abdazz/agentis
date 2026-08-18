@@ -11,6 +11,7 @@ from app.config import settings
 from app.database import get_db, AsyncSessionLocal
 from app.auth.dependencies import get_current_user
 from app.auth.rate_limiter import rate_limit
+from app.services.language import match_accept_language, detect_language_from_text
 from app.models.user import User
 from app.models.task import TaskStatus
 from app.repositories import task as task_repo
@@ -91,8 +92,17 @@ async def create_task(body: TaskCreate, request: Request,
             # Default to org's allowed tools when none specified
             requested_tools = org.allowed_tools
 
+    # Language resolution (BR-LANG-03): explicit choice > Accept-Language
+    # header match > goal-text auto-detection (confidence >= 0.8) >
+    # the user's account language.
+    language = (
+        body.language
+        or match_accept_language(request.headers.get("accept-language"))
+        or detect_language_from_text(effective_goal or "")
+        or user.language
+    )
+
     # Defaults + clamping (BR-TASK-02/03)
-    language = body.language or user.language
     requested = body.options.max_iterations or settings.default_max_iterations
     max_iterations = min(requested, settings.max_iterations_cap)
     task = await task_repo.create_task(

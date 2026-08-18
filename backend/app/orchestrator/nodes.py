@@ -138,7 +138,7 @@ async def act_node(state: AgentState, config: RunnableConfig) -> dict:
     last = state["messages"][-1]
     tool_calls = getattr(last, "tool_calls", []) or []
     session = SessionContext(session_id=ctx.task_id, task_id=ctx.task_id,
-                             sandbox_endpoint=ctx.sandbox_endpoint)
+                             sandbox_endpoint=ctx.sandbox_endpoint, user_id=ctx.user_id)
     tool_messages: list[BaseMessage] = []
     failures = state.get("failures", 0)
     for call in tool_calls:

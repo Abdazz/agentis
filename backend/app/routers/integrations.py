@@ -1,15 +1,15 @@
-import json
 import uuid as uuid_lib
 from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import select
-from cryptography.fernet import Fernet
 from app.auth.dependencies import get_current_user
-from app.config import settings
 from app.database import get_db
 from app.models.user import User
 from app.models.user_integration import UserIntegration
+from app.services.integration_credentials import (
+    encrypt_credentials, IntegrationNotConfigured,
+)
 
 router = APIRouter(prefix="/integrations", tags=["integrations"])
 
@@ -32,23 +32,10 @@ class IntegrationResponse(BaseModel):
 
 
 def _encrypt(credentials: dict) -> str:
-    if not settings.fernet_key:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Integration credentials storage is not configured (AGENTIS_FERNET_KEY missing)"
-        )
-    f = Fernet(settings.fernet_key.encode())
-    return f.encrypt(json.dumps(credentials).encode()).decode()
-
-
-def _decrypt(encrypted: str) -> dict:
-    if not settings.fernet_key:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Integration credentials storage is not configured (AGENTIS_FERNET_KEY missing)"
-        )
-    f = Fernet(settings.fernet_key.encode())
-    return json.loads(f.decrypt(encrypted.encode()).decode())
+    try:
+        return encrypt_credentials(credentials)
+    except IntegrationNotConfigured as e:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e))
 
 
 @router.post("", response_model=IntegrationResponse, status_code=201)

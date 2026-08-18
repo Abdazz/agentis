@@ -46,4 +46,8 @@ celery_app.conf.beat_schedule = {
         "task": "beat.backup_qdrant",
         "schedule": 86400.0,
     },
+    "replenish-sandbox-warm-pool": {
+        "task": "beat.replenish_sandbox_warm_pool",
+        "schedule": 60.0,
+    },
 }

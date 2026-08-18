@@ -91,3 +91,42 @@ async def test_cancel_task_returns_200(no_enqueue):
             resp = await client.delete(f"/api/v1/tasks/{tid}", headers=headers)
     assert resp.status_code == 200
     assert resp.json()["status"] == "cancelled"
+
+
+async def test_create_task_uses_accept_language_header_when_body_omits_it(no_enqueue):
+    user, headers = await _auth_user()
+    headers = {**headers, "Accept-Language": "fr-FR,fr;q=0.9"}
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post("/api/v1/tasks", headers=headers,
+                                 json={"goal": "do a thing"})
+    assert resp.status_code == 201
+    async with AsyncSessionLocal() as db:
+        t = await db.get(Task, uuid.UUID(resp.json()["id"]))
+        assert t.language == "fr"
+
+
+async def test_create_task_detects_language_from_goal_text(no_enqueue):
+    user, headers = await _auth_user()  # account language defaults to "en"
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            "/api/v1/tasks", headers=headers,
+            json={"goal": "Recherche les derniers articles sur l'intelligence "
+                          "artificielle et fais-moi un résumé détaillé, s'il te plaît."},
+        )
+    assert resp.status_code == 201
+    async with AsyncSessionLocal() as db:
+        t = await db.get(Task, uuid.UUID(resp.json()["id"]))
+        assert t.language == "fr"  # detected, overriding the "en" account default
+
+
+async def test_create_task_falls_back_to_account_language_when_ambiguous(no_enqueue):
+    user, headers = await _auth_user()
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post("/api/v1/tasks", headers=headers, json={"goal": "ok"})
+    assert resp.status_code == 201
+    async with AsyncSessionLocal() as db:
+        t = await db.get(Task, uuid.UUID(resp.json()["id"]))
+        assert t.language == user.language  # "en", the account default

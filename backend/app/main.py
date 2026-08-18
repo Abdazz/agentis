@@ -84,6 +84,9 @@ async def request_logging_middleware(request: Request, call_next):
     )
     response = await call_next(request)
     response.headers["X-Request-ID"] = request_id
+    rate_limit_headers = getattr(request.state, "rate_limit_headers", None)
+    if rate_limit_headers:
+        response.headers.update(rate_limit_headers)
     log.info("http_request", status_code=response.status_code)
     return response
 

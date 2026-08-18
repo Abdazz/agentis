@@ -40,6 +40,7 @@ async def get_current_user(
                 status_code=401,
                 detail={"code": "unauthenticated", "message": "User not found"},
             )
+        request.state.user_id = str(user.id)
         return user
 
     # Fall back to JWT Bearer
@@ -69,6 +70,7 @@ async def get_current_user(
             status_code=401,
             detail={"code": "unauthenticated", "message": "User not found"},
         )
+    request.state.user_id = str(user.id)
     return user
 
 

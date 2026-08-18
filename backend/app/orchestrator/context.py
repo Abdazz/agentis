@@ -3,7 +3,19 @@ cl100k_base as a provider-agnostic approximation."""
 import tiktoken
 from langchain_core.messages import BaseMessage, SystemMessage
 
-_ENCODER = tiktoken.get_encoding("cl100k_base")
+_ENCODER = None
+
+
+def _get_encoder():
+    # Lazy-loaded: tiktoken.get_encoding() fetches the BPE file over the network
+    # on first use unless it's already cached (see Dockerfile, which pre-warms
+    # this at build time). Loading it eagerly at import time would make the
+    # entire API fail to start on any transient network hiccup.
+    global _ENCODER
+    if _ENCODER is None:
+        _ENCODER = tiktoken.get_encoding("cl100k_base")
+    return _ENCODER
+
 
 MODEL_CONTEXT_WINDOWS = {
     "claude-sonnet-4-5-20251022": 200_000,
@@ -18,7 +30,7 @@ _DEFAULT_WINDOW = 128_000
 def count_tokens(text: str) -> int:
     if not text:
         return 0
-    return len(_ENCODER.encode(text))
+    return len(_get_encoder().encode(text))
 
 
 def count_message_tokens(messages: list[BaseMessage]) -> int:
@@ -44,10 +56,11 @@ def needs_summarization(
 
 
 def truncate_tool_output(output: str, max_tokens: int) -> str:
-    tokens = _ENCODER.encode(output)
+    encoder = _get_encoder()
+    tokens = encoder.encode(output)
     if len(tokens) <= max_tokens:
         return output
-    kept = _ENCODER.decode(tokens[:max_tokens])
+    kept = encoder.decode(tokens[:max_tokens])
     removed_chars = len(output) - len(kept)
     return f"{kept}\n[OUTPUT TRUNCATED — {removed_chars} characters removed. Full output available in task_steps.]"
 

@@ -37,15 +37,31 @@ async def check_rate_limit(request: Request, limit: int) -> None:
     count = results[2]
     limit_int = int(limit)
     reset_at = int(now) + WINDOW_SECONDS
+    remaining = max(0, limit_int - count)
+
+    # BR-API-03: rate limit headers on every response, not just 429s.
+    request.state.rate_limit_headers = {
+        "X-RateLimit-Limit": str(limit_int),
+        "X-RateLimit-Remaining": str(remaining),
+        "X-RateLimit-Reset": str(reset_at),
+    }
 
     if count > limit_int:
         raise HTTPException(
             status_code=429,
             headers={
-                "X-RateLimit-Limit": str(limit_int),
+                **request.state.rate_limit_headers,
                 "X-RateLimit-Remaining": "0",
-                "X-RateLimit-Reset": str(reset_at),
                 "Retry-After": str(WINDOW_SECONDS),
             },
             detail={"code": "rate_limited", "message": "Rate limit exceeded. Try again later."},
         )
+
+
+def rate_limit(limit: int):
+    """Dependency factory: `Depends(rate_limit(60))`. Must be declared after any
+    Depends(get_current_user) in the same route so request.state.user_id is set
+    first (BR-API-01: limits apply per authenticated principal)."""
+    async def _dependency(request: Request) -> None:
+        await check_rate_limit(request, limit)
+    return _dependency

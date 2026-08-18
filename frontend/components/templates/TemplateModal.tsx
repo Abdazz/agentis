@@ -23,7 +23,10 @@ export function TemplateModal({ onSelect }: TemplateModalProps) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
 
-  const { data: templates = [], isLoading, isError } = useTemplates()
+  // Lazy: only fetch templates once the picker is actually opened, not on
+  // every TaskForm mount.
+  const { data, isLoading, isError } = useTemplates(open)
+  const templates = Array.isArray(data) ? data : []
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()

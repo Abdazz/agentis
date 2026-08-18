@@ -11,9 +11,10 @@ export interface TaskTemplate {
   is_public: boolean
 }
 
-export function useTemplates() {
+export function useTemplates(enabled: boolean = true) {
   return useQuery({
     queryKey: ['templates'],
+    enabled,
     queryFn: async () => {
       const r = await apiFetch('/api/v1/templates')
       if (!r.ok) {

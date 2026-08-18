@@ -17,6 +17,7 @@ class SessionContext:
     task_id: str
     sandbox_endpoint: str  # http://{container_ip}:{port}
     secrets_accessor: Any = None  # Vault client — wired in Phase 1C
+    user_id: str = ""  # needed by tools that look up per-user integration credentials
 
 
 class BaseTool(ABC):

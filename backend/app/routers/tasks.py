@@ -10,6 +10,7 @@ import redis.asyncio as aioredis
 from app.config import settings
 from app.database import get_db, AsyncSessionLocal
 from app.auth.dependencies import get_current_user
+from app.auth.rate_limiter import rate_limit
 from app.models.user import User
 from app.models.task import TaskStatus
 from app.repositories import task as task_repo
@@ -35,7 +36,8 @@ def _to_response(task, request: Request | None = None) -> TaskResponse:
 @router.post("", status_code=201, response_model=TaskResponse)
 async def create_task(body: TaskCreate, request: Request,
                       user: User = Depends(get_current_user),
-                      db: AsyncSession = Depends(get_db)):
+                      db: AsyncSession = Depends(get_db),
+                      _rate_limited: None = Depends(rate_limit(60))):
     from app.models.org import Organization
     from app.models.task_template import TaskTemplate
     from sqlalchemy import or_

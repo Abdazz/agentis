@@ -211,7 +211,7 @@ async def reflect_node(state: AgentState, config: RunnableConfig) -> dict:
                 pass
         if hitl_required:
             import time
-            timeout_at = time.time() + 600  # 10-minute HITL window
+            timeout_at = time.time() + settings.hitl_timeout_seconds
             await ctx.emitter.emit(
                 TaskStepType.hitl_requested,
                 {"task_id": ctx.task_id, "reason": "Tool requires human confirmation", "timeout_at": timeout_at},
@@ -284,7 +284,7 @@ async def wait_hitl_node(state: AgentState, config: RunnableConfig) -> dict:
     from app.services.hitl import hitl_coordinator
     ctx = _ctx(config)
 
-    timeout_at = state.get("hitl_timeout_at") or (time.time() + 600)
+    timeout_at = state.get("hitl_timeout_at") or (time.time() + settings.hitl_timeout_seconds)
     remaining = max(0.0, timeout_at - time.time())
 
     response = await hitl_coordinator.wait_for_response(

@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     sandbox_image: str = "agentis-sandbox:latest"
     sandbox_max_concurrent: int = 10
     sandbox_warm_pool_size: int = 2
+    sandbox_warm_ttl_seconds: int = 300  # BR-SAND-13
     sandbox_timeout_seconds: int = 1800
     sandbox_network: str = "agentis_default"  # Docker network name
     sandbox_rpc_port: int = 9999

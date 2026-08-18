@@ -35,6 +35,19 @@ def cleanup_artifacts() -> dict:
     return {"deleted": deleted}
 
 
+@celery_app.task(name="beat.replenish_sandbox_warm_pool")
+def replenish_sandbox_warm_pool() -> dict:
+    """Keep the sandbox warm pool topped up (BR-SAND-10) and reap
+    containers that expired without being assigned (BR-SAND-13). Runs
+    on a short interval as a safety net alongside the immediate
+    post-assignment replenish in SandboxManager.create_session()."""
+    import asyncio
+    from app.sandbox.manager import sandbox_manager
+
+    asyncio.run(sandbox_manager.replenish_warm_pool())
+    return {"pool_size": len(sandbox_manager._warm_pool)}
+
+
 @celery_app.task(name="beat.reset_monthly_tokens")
 def reset_monthly_tokens() -> dict:
     """Reset token_used_this_month to 0 for all users on the 1st of each month."""

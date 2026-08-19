@@ -34,3 +34,17 @@ def test_replenish_sandbox_warm_pool_calls_manager():
     mock_replenish.assert_called_once()
     assert result["pool_size"] == 1
     sandbox_manager._warm_pool = []  # don't leak state into other tests
+
+
+def test_run_due_scheduled_tasks_records_metrics_for_created_and_errors():
+    from unittest.mock import AsyncMock
+
+    fake_result = {"created": ["task-1", "task-2"], "errors": 1}
+    with patch("app.services.scheduler.run_due_scheduled_tasks", AsyncMock(return_value=fake_result)), \
+         patch("app.observability.metrics.scheduled_tasks_fired_total") as mock_metric:
+        from app.worker.beat_jobs import run_due_scheduled_tasks
+        result = run_due_scheduled_tasks()
+
+    assert result == {"tasks_created": 2, "errors": 1}
+    mock_metric.labels.assert_any_call(status="created")
+    mock_metric.labels.assert_any_call(status="error")

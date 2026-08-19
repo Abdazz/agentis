@@ -35,6 +35,29 @@ def cleanup_artifacts() -> dict:
     return {"deleted": deleted}
 
 
+@celery_app.task(name="beat.run_due_scheduled_tasks")
+def run_due_scheduled_tasks() -> dict:
+    """Fire every active ScheduledTask whose next_run_at has passed
+    (Manus-parity "Scheduled Tasks" feature). Polls on a short interval
+    rather than registering each user schedule with Celery Beat directly —
+    see services/scheduler.py docstring."""
+    import asyncio
+    from app.database import AsyncSessionLocal
+    from app.services.scheduler import run_due_scheduled_tasks as _run_due
+    from app.observability.metrics import scheduled_tasks_fired_total
+
+    async def _run():
+        async with AsyncSessionLocal() as db:
+            return await _run_due(db)
+
+    result = asyncio.run(_run())
+    if result["created"]:
+        scheduled_tasks_fired_total.labels(status="created").inc(len(result["created"]))
+    if result["errors"]:
+        scheduled_tasks_fired_total.labels(status="error").inc(result["errors"])
+    return {"tasks_created": len(result["created"]), "errors": result["errors"]}
+
+
 @celery_app.task(name="beat.replenish_sandbox_warm_pool")
 def replenish_sandbox_warm_pool() -> dict:
     """Keep the sandbox warm pool topped up (BR-SAND-10) and reap

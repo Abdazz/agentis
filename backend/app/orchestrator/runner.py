@@ -16,8 +16,11 @@ from app.orchestrator.state import AgentState
 from app.memory.short_term import ShortTermMemory
 from app.sandbox.manager import sandbox_manager
 from app.orchestrator.observability import get_langfuse_callbacks
+from app.observability.metrics import tasks_created_total, task_duration_seconds, active_tasks_gauge
 
 log = structlog.get_logger()
+
+_TERMINAL_STATUSES = (TaskStatus.completed, TaskStatus.failed, TaskStatus.cancelled)
 
 
 async def _set_status(task_id: UUID, status: TaskStatus, **fields) -> Task | None:
@@ -29,6 +32,16 @@ async def _set_status(task_id: UUID, status: TaskStatus, **fields) -> Task | Non
         for k, v in fields.items():
             setattr(task, k, v)
         await db.commit()
+
+        tasks_created_total.labels(status=status.value).inc()
+        if status == TaskStatus.running:
+            active_tasks_gauge.inc()
+        elif status in _TERMINAL_STATUSES:
+            active_tasks_gauge.dec()
+            if task.started_at is not None:
+                completed_at = task.completed_at or datetime.now(timezone.utc)
+                task_duration_seconds.observe((completed_at - task.started_at).total_seconds())
+
         return task
 
 

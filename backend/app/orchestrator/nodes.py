@@ -17,6 +17,9 @@ from app.orchestrator.context import (truncate_tool_output, count_message_tokens
                                       needs_summarization, summarize_messages, model_window)
 from app.orchestrator import prompts
 from app.orchestrator.tools_adapter import build_tool_schemas
+from app.observability.metrics import (
+    tool_calls_total, tool_duration_seconds, hitl_requests_total, hitl_responses_total,
+)
 from app.memory.long_term import long_term_memory
 
 
@@ -152,6 +155,8 @@ async def act_node(state: AgentState, config: RunnableConfig) -> dict:
         else:
             result = await tool.execute(args, session)
             duration = int((time.time() - start) * 1000)
+            tool_calls_total.labels(tool_name=name, success=str(result.ok)).inc()
+            tool_duration_seconds.labels(tool_name=name).observe(duration / 1000)
             if result.ok:
                 result_text = truncate_tool_output(json.dumps(result.data, default=str),
                                                     settings.tool_output_max_tokens)
@@ -212,6 +217,7 @@ async def reflect_node(state: AgentState, config: RunnableConfig) -> dict:
         if hitl_required:
             import time
             timeout_at = time.time() + settings.hitl_timeout_seconds
+            hitl_requests_total.inc()
             await ctx.emitter.emit(
                 TaskStepType.hitl_requested,
                 {"task_id": ctx.task_id, "reason": "Tool requires human confirmation", "timeout_at": timeout_at},
@@ -292,6 +298,7 @@ async def wait_hitl_node(state: AgentState, config: RunnableConfig) -> dict:
     )
 
     if response is None:
+        hitl_responses_total.labels(outcome="timeout").inc()
         await ctx.emitter.emit(TaskStepType.reflect, {"note": "HITL timeout — proceeding to report"})
         return {
             "hitl_pending": False,
@@ -299,6 +306,7 @@ async def wait_hitl_node(state: AgentState, config: RunnableConfig) -> dict:
             "_reflect_decision": "report",
         }
 
+    hitl_responses_total.labels(outcome="responded").inc()
     await ctx.emitter.emit(TaskStepType.reflect, {"note": "HITL response received"})
     return {
         "hitl_pending": False,

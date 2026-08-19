@@ -89,6 +89,28 @@ services:
         max-size: "50m"
         max-file: "5"
 
+  # Celery Beat — without this, no periodic job (memory maintenance,
+  # backups, sandbox warm pool, scheduled tasks) ever fires in prod.
+  beat:
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - AGENTIS_ENVIRONMENT=production
+      - AGENTIS_LOG_LEVEL=INFO
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.1"
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
   # ---------------------------------------------------------------------------
   # PostgreSQL
   # ---------------------------------------------------------------------------

@@ -50,4 +50,8 @@ celery_app.conf.beat_schedule = {
         "task": "beat.replenish_sandbox_warm_pool",
         "schedule": 60.0,
     },
+    "run-due-scheduled-tasks": {
+        "task": "beat.run_due_scheduled_tasks",
+        "schedule": 60.0,
+    },
 }

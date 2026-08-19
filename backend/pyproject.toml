@@ -42,6 +42,7 @@ dependencies = [
     "clamd>=1.0",
     "lingua-language-detector>=2.0",
     "caldav>=3.0",
+    "croniter>=6.0",
 ]
 
 [project.optional-dependencies]

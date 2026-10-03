@@ -1807,46 +1807,46 @@ AGENTIS_LOG_LEVEL=INFO                # DEBUG|INFO|WARNING|ERROR
 
 ### Phase 2 — Production Hardening (Months 4–5)
 
-- [ ] `doc_parser` and `http_caller` tools
-- [ ] Long-term memory with Qdrant (hybrid search)
-- [ ] Memory maintenance Celery beat jobs
-- [ ] HITL WebSocket endpoint and UI
-- [ ] K3s Helm chart with Kata Container RuntimeClass
-- [ ] Audit log (append-only, admin query UI)
-- [ ] Admin dashboard (users, tools, LLM config, usage metrics)
-- [ ] Prometheus + Grafana + Loki production stack
-- [ ] Organization model (data model only, no UI yet)
-- [ ] Webhook notifications with HMAC signatures
-- [ ] File upload for task inputs
-- [ ] Artifact signed download URLs (MinIO presigned)
-- [ ] Artifact retention cleanup job
-- [ ] Monthly token usage reset job
-- [ ] Backup automation (pg_dump, Qdrant snapshots)
-- [ ] OIDC/SSO integration
+- [x] `doc_parser` and `http_caller` tools
+- [x] Long-term memory with Qdrant (hybrid search)
+- [x] Memory maintenance Celery beat jobs
+- [x] HITL WebSocket endpoint and UI
+- [ ] K3s Helm chart with Kata Container RuntimeClass — out of scope — Docker Compose prod is the deployment target
+- [x] Audit log (append-only, admin query UI)
+- [x] Admin dashboard (users, tools, LLM config, usage metrics)
+- [x] Prometheus + Grafana + Loki production stack
+- [x] Organization model (data model only, no UI yet)
+- [x] Webhook notifications with HMAC signatures
+- [x] File upload for task inputs
+- [x] Artifact signed download URLs (MinIO presigned)
+- [x] Artifact retention cleanup job
+- [x] Monthly token usage reset job
+- [x] Backup automation (pg_dump, Qdrant snapshots)
+- [x] OIDC/SSO integration
 
 ### Phase 3 — Advanced Features (Months 6–9)
 
-- [ ] MCP server tool auto-discovery
-- [ ] `email` and `calendar` tools (operator-enabled)
-- [ ] OpenAPI spec tool auto-generator
-- [ ] Organization management UI (admin)
-- [ ] Per-org LLM provider override
-- [ ] Per-org tool restrictions and token budgets
-- [ ] Multi-LLM provider switching via admin UI
-- [ ] Task templates library
-- [ ] Voyage AI self-hosted embedding option
-- [ ] Usage billing / quota management (per-org)
-- [ ] ClamAV file scanning for uploads
+- [x] MCP server tool auto-discovery
+- [x] `email` and `calendar` tools (operator-enabled)
+- [x] OpenAPI spec tool auto-generator
+- [x] Organization management UI (admin)
+- [x] Per-org LLM provider override
+- [x] Per-org tool restrictions and token budgets
+- [x] Multi-LLM provider switching via admin UI
+- [x] Task templates library
+- [x] Voyage AI self-hosted embedding option
+- [ ] Usage billing / quota management (per-org) — partial — per-org token budget + concurrent cap done; no billing
+- [x] ClamAV file scanning for uploads
 
 ### Phase 4 — Multi-Agent Collaboration (Months 10+)
 
-- [ ] Meta-orchestrator (Supervisor Agent)
-- [ ] Specialized agent roles (research, analysis, writer, etc.)
-- [ ] Inter-agent message bus (Redis pub/sub)
-- [ ] Multi-agent task view (N parallel traces)
-- [ ] Fine-tuned open-source LLM for agent reasoning
-- [ ] Voice interface (Whisper ASR + TTS)
-- [ ] Agent marketplace (community tool plugins)
+- [x] Meta-orchestrator (Supervisor Agent)
+- [x] Specialized agent roles (research, analysis, writer, etc.)
+- [x] Inter-agent message bus (Redis pub/sub)
+- [ ] Multi-agent task view (N parallel traces) — partial — `AgentTeamSection` shows subtasks; verify N live traces
+- [ ] Fine-tuned open-source LLM for agent reasoning — not started
+- [x] Voice interface (Whisper ASR + TTS)
+- [x] Agent marketplace (community tool plugins)
 
 ---
 

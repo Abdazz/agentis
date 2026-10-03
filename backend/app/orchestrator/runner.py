@@ -10,13 +10,17 @@ from app.orchestrator.budget import BudgetExceeded, record_usage
 from app.orchestrator.events import EventEmitter
 from app.orchestrator.graph import build_graph, checkpointer_context
 from app.orchestrator.llm import build_llm
+from app.orchestrator.circuit_breaker import GuardedChatModel, LLMUnavailableError, get_circuit_breaker
 from app.orchestrator.nodes import RunContext
 from app.orchestrator.state import AgentState
 from app.memory.short_term import ShortTermMemory
 from app.sandbox.manager import sandbox_manager
 from app.orchestrator.observability import get_langfuse_callbacks
+from app.observability.metrics import tasks_created_total, task_duration_seconds, active_tasks_gauge
 
 log = structlog.get_logger()
+
+_TERMINAL_STATUSES = (TaskStatus.completed, TaskStatus.failed, TaskStatus.cancelled)
 
 
 async def _set_status(task_id: UUID, status: TaskStatus, **fields) -> Task | None:
@@ -28,6 +32,16 @@ async def _set_status(task_id: UUID, status: TaskStatus, **fields) -> Task | Non
         for k, v in fields.items():
             setattr(task, k, v)
         await db.commit()
+
+        tasks_created_total.labels(status=status.value).inc()
+        if status == TaskStatus.running:
+            active_tasks_gauge.inc()
+        elif status in _TERMINAL_STATUSES:
+            active_tasks_gauge.dec()
+            if task.started_at is not None:
+                completed_at = task.completed_at or datetime.now(timezone.utc)
+                task_duration_seconds.observe((completed_at - task.started_at).total_seconds())
+
         return task
 
 
@@ -89,7 +103,14 @@ async def run_task(task_id_str: str, llm=None, skip_sandbox: bool = False) -> No
             session = await sandbox_manager.create_session(task_id_str)
             sandbox_endpoint = session.endpoint
 
-        llm = llm or build_llm(provider=org_llm_provider, model=org_llm_model)
+        if llm is None:
+            resolved_provider = (org_llm_provider or settings.llm_provider).lower()
+            resolved_model = org_llm_model or settings.llm_model
+            breaker = get_circuit_breaker(f"{resolved_provider}:{resolved_model}")
+            llm = GuardedChatModel(
+                build_llm(provider=org_llm_provider, model=org_llm_model),
+                breaker, timeout_s=settings.llm_timeout_s,
+            )
         memory_block = await stm.build_context_block(str(user_id), max_tokens=500)
         run_ctx = RunContext(llm=llm, emitter=emitter, sandbox_endpoint=sandbox_endpoint,
                              user_id=str(user_id), task_id=task_id_str,
@@ -148,6 +169,16 @@ async def run_task(task_id_str: str, llm=None, skip_sandbox: bool = False) -> No
         if summary:
             await stm.store_task_summary(str(user_id), summary[:400])
 
+    except LLMUnavailableError as e:
+        # BR-ORCH-03: circuit open — the task fails immediately, distinct
+        # from a generic agent error, so clients/HITL can distinguish a
+        # provider outage from an actual task/tool failure.
+        log.error("llm_unavailable", task_id=task_id_str, error=str(e))
+        await emitter.emit(TaskStepType.report,
+                           {"error": str(e), "error_code": "llm_unavailable", "retryable": True},
+                           sse_type="task_failed")
+        await _set_status(task_id, TaskStatus.failed, error_message=str(e)[:1000],
+                          error_code="llm_unavailable", completed_at=datetime.now(timezone.utc))
     except Exception as e:
         log.error("task_failed", task_id=task_id_str, error=str(e))
         await emitter.emit(TaskStepType.report,

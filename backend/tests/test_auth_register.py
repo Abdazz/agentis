@@ -48,3 +48,36 @@ async def test_register_case_insensitive_email_dedup(client: AsyncClient):
         "password": "Secure123!Pass"
     })
     assert response.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_register_without_language_uses_accept_language_header(client: AsyncClient):
+    response = await client.post(
+        "/api/v1/auth/register",
+        json={"email": "bob-al@example.com", "password": "Secure123!Pass"},
+        headers={"Accept-Language": "en-US,en;q=0.9"},
+    )
+    assert response.status_code == 201
+    assert response.json()["user"]["language"] == "en"
+
+
+@pytest.mark.asyncio
+async def test_register_without_language_or_header_uses_operator_default(client: AsyncClient):
+    response = await client.post(
+        "/api/v1/auth/register",
+        json={"email": "carol-default@example.com", "password": "Secure123!Pass"},
+    )
+    assert response.status_code == 201
+    from app.config import settings
+    assert response.json()["user"]["language"] == settings.default_language
+
+
+@pytest.mark.asyncio
+async def test_register_explicit_language_wins_over_header(client: AsyncClient):
+    response = await client.post(
+        "/api/v1/auth/register",
+        json={"email": "dave-explicit@example.com", "password": "Secure123!Pass", "language": "fr"},
+        headers={"Accept-Language": "en-US,en;q=0.9"},
+    )
+    assert response.status_code == 201
+    assert response.json()["user"]["language"] == "fr"

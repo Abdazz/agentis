@@ -20,6 +20,7 @@ from app.auth.jwt import create_access_token
 from app.auth.api_keys import generate_api_key
 from app.auth.dependencies import get_current_user
 from app.config import settings
+from app.services.language import match_accept_language
 
 router = APIRouter()
 
@@ -50,6 +51,7 @@ def _set_refresh_cookie(response: Response, raw_token: str) -> None:
 @router.post("/register", status_code=201)
 async def register(
     payload: RegisterRequest,
+    request: Request,
     response: Response,
     db: AsyncSession = Depends(get_db),
 ):
@@ -63,11 +65,18 @@ async def register(
             detail={"code": "email_taken", "message": "Email already registered"},
         )
 
+    # BR-LANG-01: explicit choice > Accept-Language match > operator default.
+    language = (
+        payload.language
+        or match_accept_language(request.headers.get("accept-language"))
+        or settings.default_language
+    )
+
     user = User(
         email=payload.email,
         name=payload.name,
         password_hash=hash_password(payload.password),
-        language=payload.language,
+        language=language,
     )
     db.add(user)
     await db.flush()  # get user.id without committing

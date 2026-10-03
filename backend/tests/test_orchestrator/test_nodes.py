@@ -85,3 +85,46 @@ async def test_report_node_sets_done_and_summary(ctx):
     out = await report_node(state, _config(ctx))
     assert out["done"] is True
     assert "result_summary" in out
+
+
+async def test_act_node_records_tool_call_metrics(ctx, monkeypatch):
+    from unittest.mock import AsyncMock, MagicMock
+    from app.tools.base import ToolResult
+    from app.orchestrator.nodes import act_node, tool_calls_total, tool_duration_seconds
+    from app.orchestrator import nodes as nodes_module
+
+    fake_tool = MagicMock()
+    fake_tool.execute = AsyncMock(return_value=ToolResult(ok=True, data={"result": "ok"}))
+    monkeypatch.setattr(nodes_module.tool_registry, "get", lambda name: fake_tool)
+
+    before = tool_calls_total.labels(tool_name="web_search", success="True")._value.get()
+
+    msg = AIMessage(content="", tool_calls=[{"name": "web_search", "args": {"query": "x"}, "id": "c1"}])
+    state: AgentState = {"task_id": ctx.task_id, "user_id": ctx.user_id, "goal": "g",
+                         "language": "en", "messages": [msg], "iteration": 0}
+    await act_node(state, _config(ctx))
+
+    after = tool_calls_total.labels(tool_name="web_search", success="True")._value.get()
+    assert after == before + 1
+
+
+async def test_reflect_node_hitl_required_increments_hitl_requests_metric(ctx):
+    from langchain_core.messages import ToolMessage
+    from app.orchestrator.nodes import reflect_node, hitl_requests_total
+
+    ctx.llm = GenericFakeChatModel(messages=iter([
+        AIMessage(content=json.dumps({"confidence": 0.5, "decision": "continue", "note": ""})),
+    ]))
+
+    before = hitl_requests_total._value.get()
+
+    tool_msg = ToolMessage(
+        content=json.dumps({"hitl_required": True}), tool_call_id="c1",
+    )
+    state: AgentState = {"task_id": ctx.task_id, "user_id": ctx.user_id, "goal": "g",
+                         "language": "en", "messages": [tool_msg], "iteration": 1,
+                         "plan": {"goal": "g", "subtasks": []}}
+    await reflect_node(state, _config(ctx))
+
+    after = hitl_requests_total._value.get()
+    assert after == before + 1

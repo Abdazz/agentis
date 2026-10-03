@@ -7,12 +7,22 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
     name: str | None = None
-    language: str = "fr"
+    # None means "not specified" — the register endpoint falls back to the
+    # Accept-Language header, then the operator's configured default
+    # (BR-LANG-01). Explicit values are still restricted to en/fr.
+    language: str | None = None
 
     @field_validator("password")
     @classmethod
     def password_strength(cls, v: str) -> str:
         validate_password_strength(v)
+        return v
+
+    @field_validator("language")
+    @classmethod
+    def validate_language(cls, v):
+        if v is not None and v not in ("en", "fr"):
+            raise ValueError("language must be 'en' or 'fr'")
         return v
 
 

@@ -22,6 +22,7 @@ from app.routers.config_admin import router as config_admin_router
 from app.routers.oidc_config import router as oidc_config_router
 from app.routers.oidc_auth import router as oidc_auth_router
 from app.routers.templates import router as templates_router
+from app.routers.scheduled_tasks import router as scheduled_tasks_router
 from app.observability.metrics import metrics_router
 from app.tools.registry import tool_registry
 from app.tools.init_registry import register_all_tools, seed_tool_configs
@@ -84,6 +85,9 @@ async def request_logging_middleware(request: Request, call_next):
     )
     response = await call_next(request)
     response.headers["X-Request-ID"] = request_id
+    rate_limit_headers = getattr(request.state, "rate_limit_headers", None)
+    if rate_limit_headers:
+        response.headers.update(rate_limit_headers)
     log.info("http_request", status_code=response.status_code)
     return response
 
@@ -103,6 +107,7 @@ app.include_router(config_admin_router, prefix="/api/v1")
 app.include_router(oidc_config_router, prefix="/api/v1")
 app.include_router(oidc_auth_router, prefix="/api/v1")
 app.include_router(templates_router, prefix="/api/v1")
+app.include_router(scheduled_tasks_router, prefix="/api/v1")
 app.include_router(metrics_router)  # /metrics — no prefix, Prometheus standard
 
 

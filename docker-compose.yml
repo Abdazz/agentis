@@ -9,8 +9,15 @@ services:
       - AGENTIS_REDIS_CACHE_URL=redis://redis:6379/1
       - AGENTIS_JWT_PRIVATE_KEY_PATH=/secrets/jwt/private.pem
       - AGENTIS_JWT_PUBLIC_KEY_PATH=/secrets/jwt/public.pem
+      # Celery runs as separate processes (worker, beat) from the API — a
+      # plain in-process Counter/Histogram recorded in the worker would
+      # never reach this container's /metrics. This shared dir + the
+      # matching env var on worker/beat switches prometheus_client into
+      # multiprocess mode so /metrics aggregates all of them.
+      - PROMETHEUS_MULTIPROC_DIR=/tmp/prometheus_multiproc
     volumes:
       - ./secrets/jwt:/secrets/jwt:ro
+      - prometheus_multiproc:/tmp/prometheus_multiproc
     depends_on:
       pgbouncer:
         condition: service_healthy
@@ -25,6 +32,8 @@ services:
       dockerfile: Dockerfile
     command: celery -A app.worker.celery_app worker --loglevel=info --concurrency=4
     env_file: .env
+    environment:
+      - PROMETHEUS_MULTIPROC_DIR=/tmp/prometheus_multiproc
     depends_on:
       postgres:
         condition: service_healthy
@@ -34,6 +43,31 @@ services:
         condition: service_healthy
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock   # sandbox container management
+      - prometheus_multiproc:/tmp/prometheus_multiproc
+    networks:
+      - agentis_default
+
+  beat:
+    # Celery Beat: dispatches every periodic job in worker/celery_app.py's
+    # beat_schedule (memory decay/prune, artifact cleanup, monthly token
+    # reset, Postgres/Qdrant backups, sandbox warm pool replenishment,
+    # scheduled task firing). Without this service none of those jobs
+    # ever run — the schedule is only a dispatch table, it doesn't
+    # self-execute.
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A app.worker.celery_app beat --loglevel=info
+    env_file: .env
+    environment:
+      - PROMETHEUS_MULTIPROC_DIR=/tmp/prometheus_multiproc
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - prometheus_multiproc:/tmp/prometheus_multiproc
     networks:
       - agentis_default
 
@@ -202,6 +236,7 @@ volumes:
   minio_data:
   grafana_data:
   loki_data:
+  prometheus_multiproc:
 
 networks:
   agentis_default:

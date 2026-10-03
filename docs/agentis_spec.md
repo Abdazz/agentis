@@ -1848,6 +1848,20 @@ AGENTIS_LOG_LEVEL=INFO                # DEBUG|INFO|WARNING|ERROR
 - [x] Voice interface (Whisper ASR + TTS)
 - [x] Agent marketplace (community tool plugins)
 
+### Delivered beyond the original roadmap (merged 2026-10)
+
+- [x] Real `email` (IMAP/SMTP) and `calendar` (CalDAV) integrations with HITL gate on send/create/delete
+- [x] LLM circuit breaker (BR-ORCH-03/04)
+- [x] Sandbox warm container pool (BR-SAND-10..14)
+- [x] Language auto-detection (BR-LANG-01/03)
+- [x] Scheduled / recurring tasks (backend scheduler + `/scheduled-tasks` UI)
+- [x] API rate limiting wired, HITL timeout fix, observability fix (beat process, cross-process Prometheus metrics)
+- [x] Docker Compose prod deployment scripts (`infra/deploy/`), OIDC auth flow (PKCE), task templates
+
+### Open items (next steps)
+
+See `docs/NEXT_STEPS.md`.
+
 ---
 
 *Document version: 2.0.0 — Created: 2026-05-29*

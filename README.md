@@ -4,8 +4,6 @@
 
 Vous décrivez un objectif en langage naturel. L'agent le découpe en sous-tâches, utilise des outils (navigateur, exécution de code, recherche web, fichiers, e-mail, calendrier…), évalue ses résultats et livre des artefacts structurés. Toute l'exécution a lieu dans un sandbox isolé.
 
-> Statut : les phases 1 à 4 de la roadmap sont implémentées et fusionnées dans `main`. Quelques briques de la vision restent à livrer (voir [Ce qui reste à construire](#ce-qui-reste-à-construire)). Le suivi détaillé se trouve dans [`docs/agentis_spec.md` §20](docs/agentis_spec.md) et les prochaines étapes dans [`docs/NEXT_STEPS.md`](docs/NEXT_STEPS.md).
-
 ---
 
 ## Sommaire
@@ -22,7 +20,6 @@ Vous décrivez un objectif en langage naturel. L'agent le découpe en sous-tâch
 - [Observabilité](#observabilité)
 - [Sécurité](#sécurité)
 - [Documentation](#documentation)
-- [Roadmap](#roadmap)
 
 ---
 
@@ -62,25 +59,13 @@ Ce n'est pas un chatbot. On ne converse pas avec Agentis, on lui **confie un tra
 | **Fiabilité** | L'état de l'agent est sauvegardé à chaque étape : un worker qui tombe n'interrompt pas la tâche, un autre la reprend. Sauvegardes automatiques de la base et de la mémoire. |
 | **Multilingue** | Interface, agent et voix en français et en anglais, avec détection automatique de la langue. L'architecture permet d'ajouter d'autres langues. |
 
-### Modèle de distribution
+### Déploiement
 
-Le cœur de la plateforme est publié sous **licence MIT**. Des modules complémentaires commerciaux peuvent s'y ajouter. Agentis se déploie en une commande avec Docker Compose sur un serveur Debian, TLS compris. L'interface web est responsive : elle couvre les usages mobiles sans application native.
-
-### Ce qui reste à construire
-
-| Brique de la vision | État |
-|---------------------|------|
-| Facturation de l'usage par organisation | Partiel : budgets et plafond de tâches simultanées en place, pas encore de rapports de consommation ni de facturation |
-| Vue multi-agent à N traces parallèles en direct | Partiel : la liste des sous-tâches est affichée, les traces simultanées restent à faire |
-| LLM open source fine-tuné pour le raisonnement d'agent | Non commencé |
-| Validation de bout en bout et CI automatisée | À faire |
-| Fichier de licence MIT dans le dépôt | À ajouter |
+Agentis se déploie en une commande avec Docker Compose sur un serveur Debian, TLS compris. L'interface web est responsive : elle couvre les usages mobiles sans application native.
 
 ---
 
 ## Fonctionnalités
-
-Ce qui est déjà implémenté dans `main` :
 
 **Agent**
 - Boucle ReAct sur LangGraph : `PLAN → THINK → ACT → OBSERVE → REFLECT → REPORT`, avec un checkpoint PostgreSQL à chaque étape. N'importe quel worker peut reprendre une tâche.
@@ -191,7 +176,7 @@ On peut aussi ajouter des outils sans toucher au code : découverte automatique 
 ├── squid/                   # Proxy de sortie (allowlist)
 ├── pgbouncer/
 ├── infra/                   # Prometheus, Loki, Grafana, scripts de déploiement
-├── docs/                    # Spécification, plans de phases, prochaines étapes
+├── docs/                    # Spécification technique
 ├── docker-compose.yml           # Stack de base
 ├── docker-compose.override.yml  # Surcharges dev (hot reload, ports)
 └── docker-compose.prod.yml      # Production (Caddy, aucun port interne exposé)
@@ -369,17 +354,4 @@ Détails dans la [spec §16](docs/agentis_spec.md).
 | Document | Contenu |
 |----------|---------|
 | [`docs/agentis_spec.md`](docs/agentis_spec.md) | Spécification complète v2.0 : epics, modèle de données, API, sécurité, infra |
-| [`docs/NEXT_STEPS.md`](docs/NEXT_STEPS.md) | Priorités en cours |
 
----
-
-## Roadmap
-
-- [x] **Phase 1** : boucle d'agent, 4 outils de base, sandbox, UI + SSE, auth, EN/FR
-- [x] **Phase 2** : mémoire long terme, HITL, audit, admin, observabilité, organisations, webhooks, OIDC
-- [x] **Phase 3** : MCP, OpenAPI, e-mail/calendrier, LLM par organisation, modèles de tâches, ClamAV
-- [x] **Phase 4** : multi-agent, voix, marketplace
-- [ ] Facturation de l'usage par organisation (budgets et plafonds déjà en place)
-- [ ] Vue multi-agent à N traces parallèles (partielle)
-- [ ] LLM open source fine-tuné
-- [ ] CI GitHub Actions

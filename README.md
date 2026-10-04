@@ -4,12 +4,13 @@
 
 Vous décrivez un objectif en langage naturel. L'agent le découpe en sous-tâches, utilise des outils (navigateur, exécution de code, recherche web, fichiers, e-mail, calendrier…), évalue ses résultats et livre des artefacts structurés. Toute l'exécution a lieu dans un sandbox isolé.
 
-> Statut : les phases 1 à 4 de la roadmap sont implémentées et fusionnées dans `main`. Le suivi détaillé se trouve dans [`docs/agentis_spec.md` §20](docs/agentis_spec.md) et les prochaines étapes dans [`docs/NEXT_STEPS.md`](docs/NEXT_STEPS.md).
+> Statut : les phases 1 à 4 de la roadmap sont implémentées et fusionnées dans `main`. Quelques briques de la vision restent à livrer (voir [Ce qui reste à construire](#ce-qui-reste-à-construire)). Le suivi détaillé se trouve dans [`docs/agentis_spec.md` §20](docs/agentis_spec.md) et les prochaines étapes dans [`docs/NEXT_STEPS.md`](docs/NEXT_STEPS.md).
 
 ---
 
 ## Sommaire
 
+- [Vision : Agentis une fois terminé](#vision--agentis-une-fois-terminé)
 - [Fonctionnalités](#fonctionnalités)
 - [Architecture](#architecture)
 - [Stack technique](#stack-technique)
@@ -25,7 +26,61 @@ Vous décrivez un objectif en langage naturel. L'agent le découpe en sous-tâch
 
 ---
 
+## Vision : Agentis une fois terminé
+
+### Ce que c'est
+
+Agentis est une **plateforme open source d'agents IA autonomes** qu'une équipe, une entreprise ou un laboratoire installe sur sa propre infrastructure, sur site ou dans un cloud privé, sans dépendre d'un fournisseur cloud.
+
+Ce n'est pas un chatbot. On ne converse pas avec Agentis, on lui **confie un travail**. L'utilisateur formule un objectif (« compare les offres de ces cinq fournisseurs et produis un tableau de synthèse en PDF », « surveille ce site chaque lundi et envoie-moi un résumé des changements »), puis récupère un résultat terminé. Entre les deux, l'agent planifie, agit, vérifie et corrige son plan de lui-même, sur des dizaines d'étapes si nécessaire.
+
+### Pour qui
+
+- **Les utilisateurs métier** délèguent des tâches longues et répétitives : recherche documentaire, veille, collecte et analyse de données, rédaction de rapports, tri d'e-mails, organisation d'agenda. Ils le font depuis une interface web en français ou en anglais, ou à la voix.
+- **Les développeurs** intègrent l'agent à leurs propres applications via une API ouverte (clés API, webhooks signés) et l'étendent avec leurs propres outils.
+- **Les opérateurs et administrateurs** gardent le contrôle total. Ils choisissent le LLM, décident quels outils sont autorisés, fixent les budgets, observent et auditent chaque action de l'agent.
+
+### L'expérience cible
+
+1. **Soumettre.** L'utilisateur écrit (ou dicte) son objectif, joint éventuellement des fichiers, choisit un modèle de tâche ou programme une exécution récurrente.
+2. **Suivre.** La trace s'affiche en direct : le plan, chaque outil appelé, chaque résultat, le niveau de confiance de l'agent. Pour une tâche complexe, une équipe d'agents spécialisés (recherche, analyse, rédaction…) travaille en parallèle, et l'utilisateur voit les **N traces simultanément**.
+3. **Intervenir si besoin.** Quand l'agent doute, ou avant toute action irréversible (envoyer un e-mail, créer un événement), il s'arrête et demande validation. L'utilisateur répond dans un chat intégré, puis l'agent reprend là où il s'était arrêté.
+4. **Récupérer.** L'agent livre un résumé et des artefacts téléchargeables : PDF, CSV, images, code, documents.
+5. **Retrouver.** L'agent se souvient des préférences et des connaissances de l'utilisateur d'une tâche à l'autre. Chaque tâche passée peut être rejouée étape par étape.
+
+### Les engagements de la plateforme
+
+| Engagement | Ce que cela signifie concrètement |
+|------------|-----------------------------------|
+| **Souveraineté** | Tout tourne chez vous. Le LLM peut être un fournisseur commercial (Claude, OpenAI, Mistral, Groq, DeepSeek) ou un modèle local via Ollama, y compris un **modèle open source fine-tuné pour le raisonnement d'agent**, pour fonctionner sans aucune API externe. Les embeddings peuvent aussi être auto-hébergés. |
+| **Isolation** | Chaque session d'agent s'exécute dans sa propre micro-VM Kata, avec un noyau dédié, un système de fichiers en lecture seule et des sorties réseau filtrées. Un contenu web malveillant ne peut pas atteindre la plateforme. |
+| **Confidentialité** | Les identifiants des intégrations (messagerie, agenda, API) sont chiffrés et n'entrent jamais dans le contexte du LLM. |
+| **Contrôle** | RBAC à trois niveaux, politiques d'outils et de LLM par organisation, journal d'audit inaltérable, validation humaine sur les actions sensibles. |
+| **Maîtrise des coûts** | Budgets de tokens par tâche, par utilisateur et par organisation, quotas, et **suivi de consommation facturable par organisation**. |
+| **Extensibilité** | Nouveaux outils sans modifier le code : serveurs MCP découverts automatiquement, outils générés depuis une spec OpenAPI, marketplace de plugins communautaires. |
+| **Observabilité** | Chaque appel LLM est tracé, chaque métrique exposée, chaque log structuré et centralisé. |
+| **Fiabilité** | L'état de l'agent est sauvegardé à chaque étape : un worker qui tombe n'interrompt pas la tâche, un autre la reprend. Sauvegardes automatiques de la base et de la mémoire. |
+| **Multilingue** | Interface, agent et voix en français et en anglais, avec détection automatique de la langue. L'architecture permet d'ajouter d'autres langues. |
+
+### Modèle de distribution
+
+Le cœur de la plateforme est publié sous **licence MIT**. Des modules complémentaires commerciaux peuvent s'y ajouter. Agentis se déploie en une commande avec Docker Compose sur un serveur Debian, TLS compris. L'interface web est responsive : elle couvre les usages mobiles sans application native.
+
+### Ce qui reste à construire
+
+| Brique de la vision | État |
+|---------------------|------|
+| Facturation de l'usage par organisation | Partiel : budgets et plafond de tâches simultanées en place, pas encore de rapports de consommation ni de facturation |
+| Vue multi-agent à N traces parallèles en direct | Partiel : la liste des sous-tâches est affichée, les traces simultanées restent à faire |
+| LLM open source fine-tuné pour le raisonnement d'agent | Non commencé |
+| Validation de bout en bout et CI automatisée | À faire |
+| Fichier de licence MIT dans le dépôt | À ajouter |
+
+---
+
 ## Fonctionnalités
+
+Ce qui est déjà implémenté dans `main` :
 
 **Agent**
 - Boucle ReAct sur LangGraph : `PLAN → THINK → ACT → OBSERVE → REFLECT → REPORT`, avec un checkpoint PostgreSQL à chaque étape. N'importe quel worker peut reprendre une tâche.
